@@ -13,15 +13,17 @@
     in
     {
       lib = {
-        genImage =
+        genSlopboxImage =
           {
+            imageName ? "slopbox",
+            imageTag ? "latest",
             pkgs,
             agentPkg,
             additionalPkgs ? [ ],
           }:
           pkgs.dockerTools.buildLayeredImage {
-            name = "slopbox";
-            tag = "latest";
+            name = imageName;
+            tag = imageTag;
 
             contents =
               with pkgs;
@@ -51,7 +53,7 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
-          slopbox = self.lib.genImage {
+          slopbox = self.lib.genSlopboxImage {
             pkgs = pkgs;
             agentPkg = pkgs.opencode;
           };
