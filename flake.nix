@@ -1,5 +1,5 @@
 {
-  description = "Flake for running AI agents in a secure-ish environemnt";
+  description = "Flake for running AI agents in a secure-ish environment";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -20,7 +20,7 @@
             additionalPkgs ? [ ],
           }:
           pkgs.dockerTools.buildLayeredImage {
-            name = "agentic-dev-env";
+            name = "slopbox";
             tag = "latest";
 
             contents =
@@ -51,9 +51,26 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
-          image = self.lib.genImage {
+          slopbox = self.lib.genImage {
             pkgs = pkgs;
             agentPkg = pkgs.opencode;
+          };
+
+          slopbox-proxy = pkgs.dockerTools.buildLayeredImage {
+            name = "slopbox-proxy";
+            tag = "latest";
+
+            contents = [
+              pkgs._3proxy
+              pkgs.cacert
+            ];
+
+            config = {
+              Env = [
+                "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              ];
+            };
+
           };
         }
       );

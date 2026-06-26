@@ -1,0 +1,45 @@
+networks:
+  agent_net:
+    internal: true
+  proxy_net:
+    driver: bridge
+
+services:
+  agent:
+    image: slopbox
+    networks:
+      - agent_net
+
+    # gVisor doesn't work with rootless docker; if you're running "rootful" docker, enable this
+    # you still need to install gVisor though, follow the steps from their installation page
+    # runtime: runsc
+
+    cap_drop:
+      - ALL
+    read_only: true
+
+    # need 'exec' for the /tmp path as OpenCode fails to run otherwise
+    tmpfs:
+      - /tmp:exec
+      - /home/agent
+
+    # if you don't run docker in rootless mode, you need to set up uid/guid mapping
+    # user: "1000:1000" (check with `id -u` and `id -g`)
+
+    environment:
+      - HOME=/home/agent
+      - HTTP_PROXY=http://proxy:3128
+      - HTTPS_PROXY=http://proxy:3128
+      - NO_PROXY=localhost,127.0.0.1
+    volumes:
+      - .:/workspace
+
+  proxy:
+    image: slopbox-proxy
+    networks:
+      - agent_net
+      - proxy_net
+    volumes:
+      - ./3proxy.cfg:/etc/3proxy/3proxy.cfg:ro
+    command: 3proxy /etc/3proxy/3proxy.cfg
+
