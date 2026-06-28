@@ -32,6 +32,7 @@
                 coreutils
                 git
                 cacert
+                curl
                 agentPkg
               ]
               ++ additionalPkgs;
@@ -50,12 +51,21 @@
       packages = forAllSystems (
         system:
         let
-          pkgs = import nixpkgs { inherit system; };
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfreePredicate =
+              pkg:
+              builtins.elem (lib.getName pkg) (
+                map lib.getName [
+                  pkgs.claude-code
+                ]
+              );
+          };
         in
         {
           slopbox = self.lib.genSlopboxImage {
             pkgs = pkgs;
-            agentPkg = pkgs.opencode;
+            agentPkg = pkgs.claude-code;
           };
 
           slopbox-proxy = pkgs.dockerTools.buildLayeredImage {
