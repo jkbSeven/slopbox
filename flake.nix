@@ -33,6 +33,8 @@
                 git
                 cacert
                 curl
+                gnugrep
+                gnused
                 agentPkg
               ]
               ++ additionalPkgs;
