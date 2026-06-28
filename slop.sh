@@ -13,13 +13,16 @@ assert_installed() {
 
 usage() {
     cat <<EOF
-Usage: $0 [OPTIONS]
+Usage: $0 [OPTIONS] [COMMAND]
 
 OPTIONS:
     -a      pass additional args to the docker compose command
     -h      print this help menu
     -l      print a list of available presets
     -p      specify a preset
+
+COMMANDS:
+    stop    shutdown running containers
 EOF
 }
 
@@ -52,6 +55,14 @@ while getopts ":p:a:hl" opt; do
         *) printf 'Invalid option "%s"\n' "$opt"; usage; exit 1 ;;
     esac
 done
+
+shift $(( OPTIND - 1 ))
+
+if [ $# -eq 1 ] && [ "$1" = "stop" ]; then
+    cd $SCRIPT_DIR || exit $?
+    docker compose down || exit $?
+    exit 0
+fi
 
 if [ -z "$PRESET" ]; then
     error "You need to pass a preset with '-p <PRESET>'. List available presets with '-l'"

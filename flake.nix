@@ -35,6 +35,8 @@
                 curl
                 gnugrep
                 gnused
+                man
+                less
                 agentPkg
               ]
               ++ additionalPkgs;
