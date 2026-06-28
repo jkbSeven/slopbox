@@ -16,6 +16,7 @@ usage() {
 Usage: $0 [OPTIONS]
 
 OPTIONS:
+    -a      pass additional args to the docker compose command
     -h      print this help menu
     -l      print a list of available presets
     -p      specify a preset
@@ -31,7 +32,7 @@ EXEC_DIR=$(pwd)
 
 # later we `cd` into the directory with compose
 # so we don't need to pass the path to compose file
-PRESETS_CLAUDE="docker compose run --rm -v $EXEC_DIR:/workspace -v claude_data:/home/agent/.claude -v ./.claude.json:/home/agent/.claude.json agent"
+PRESETS_CLAUDE="docker compose run --rm -v $EXEC_DIR:/workspace -v claude_data:/home/agent/.claude -v ./.claude.json:/home/agent/.claude.json"
 
 
 print_presets() {
@@ -41,8 +42,10 @@ print_presets() {
 
 
 PRESET=
-while getopts ":p:hl" opt; do
+ADDITIONAL_ARGS=
+while getopts ":p:a:hl" opt; do
     case $opt in
+        a) ADDITIONAL_ARGS="$OPTARG" ;;
         h) usage; exit 0 ;;
         l) print_presets; exit 0;;
         p) PRESET="$OPTARG" ;;
@@ -60,8 +63,10 @@ case $PRESET in
     *) error "Preset '$PRESET' is not available. List available presets with '-l'";;
 esac
 
-
 cd $SCRIPT_DIR || exit $?
 docker compose up --wait proxy || exit $?
 
-sh -c "$CMD"
+FINAL_CMD="$CMD $ADDITIONAL_ARGS agent"
+
+printf 'Executing: %s\n' "$FINAL_CMD"
+sh -c "$FINAL_CMD"
