@@ -73,7 +73,7 @@
     },
 
     "proxy": {
-        // default to true, but let user turn this off -> we don't spawn the proxy in compose
+        // default to true, but let user turn this off -> we don't spawn the proxy in compose nor do we use the custom proxy
         "enable": true,
 
         "force_https": true,
