@@ -1,0 +1,150 @@
+{
+    "version": 1,
+
+    "flake": "/path/to/flake.nix", // exclusive with "agent_image" and "custom_agent_image"
+
+    "agent": {
+        // we need to have separate `pkgs` key, so that we can use them for both docker and microvm
+        "pkgs": [],  // names from nixpkgs
+
+        // but what if someone wants to use pkgs from outside nixpkgs????
+        // maybe slopbox.agentPkgs output from user's flake? then this option would be exclusive with `pkgs`
+        // and would default to true if `flake` is set
+        "use_pkgs_from_flake": false,  
+
+        "workdir": "/workspace",
+
+        "container": {
+
+            // exclusive with "custom_agent_image"
+            "image": {
+                "name": "slopbox",
+                "tag": "latest",
+                "agent_pkg": "opencode", // how to make default mounts out of that???
+                "use_base_pkgs": true, // whether to use core pkgs from the slopbox flake (e.g. coreutils, grep)
+                "additional_pkgs": [  // names from nixpkgs
+                    "python314",
+                    "nodejs",
+                    "gnumake"
+                ]
+            },
+
+            // maybe combine `image` and `custom_image`; distinction whether `build: true` is set?
+            // also for the nix image, the agent_pkg would have to be set, here can be null
+            // maybe also a `pull: true`? so we have both `build`, `pull`.
+            // `pull` implies an existing image, `build` implies building an image with nix
+            // default: `build: true, pull: false`
+            // or `pull: true|"always"|"if_needed"`?
+            // but how will I know whether the nix-built image needs to be rebuilt? `$ slopbox build` to force build?
+            // need to have change detection so user is aware when running on outdated image
+            "custom_image": {
+                "name": "<image_name>",
+
+                // so that we know what default mounts are needed
+                // default = null; user has to manually mount agent-specific volumes
+                "agent_pkg": "<agent_pkg_name>"
+            },
+
+            // default to what's available; if >1 , then flake -> agent_image -> custom_agent_image
+            "agent_image_source": "<image|custom_image|flake>",
+
+            // in case user wants to use a custom runtime, e.g. gVisor (runsc)
+            "runtime": "runc",
+
+            "mounts": {} // will be merged with the toplevel `agent.mounts`
+        },
+
+        "vm": {
+            "backend": "qemu", // not sure if want to bother with this, maybe enforce qemu, at least at the beginning
+
+            "agent_pkg": "opencode",
+
+            // whether to use core pkgs from the slopbox flake (e.g. coreutils, grep)
+            "use_base_pkgs": true,  // this is different from `agent.pkgs`!
+
+            "additional_pkgs": [],
+
+            "mounts": {} // will be merged with the toplevel `agent.mounts`
+
+            // not sure what else to put here yet
+        },
+
+        "mounts": {}
+    },
+
+    "proxy": {
+        // default to true, but let user turn this off -> we don't spawn the proxy in compose
+        "enable": true,
+
+        "force_https": true,
+
+        "allowlist": [
+            "${config.presets.proxy.python}",
+            "${config.presets.proxy.github}",
+            "some.custom.domain.tld.xxx"
+        ],
+
+        // in case user has their own proxy running and doesn't want to use slopbox 3proxy setup
+        // need to check if `custom` is an object or null; default to null, so we use 3proxy
+        "custom": {
+            "http_proxy": "http://proxy:7777",
+            "https_proxy": "https://proxy:7777",
+            "no_proxy": ["localhost", "127.0.0.1"]
+        }
+    },
+
+    "presets": {
+        "mounts": {
+            "cwd": ".:${config.agent.workspace}",
+            "git": ".git:${config.agent.workspace}/.git:ro",
+            "secrets": "secrets:${config.agent.workspace}/secrets:ro",
+            "opencode": {
+                "config": "",
+                "data": ""
+            },
+            "claude-code": {
+                "config": "",
+                "data": ""
+            },
+            "codex": {
+                "config": "",
+                "data": ""
+            }
+        },
+
+        // only used for the default 3proxy; doesn't do anything if `config.proxy.custom is defined`
+        "proxy": {
+
+            "python": [
+                "*.pypi.org",
+                "pypi.org",
+                "*.pythonhosted.org"
+            ],
+
+            "js": [
+                "*.npmjs.com",
+                "npmjs.com",
+
+                "*.npmjs.org",
+                "npmjs.org",
+                "registry.npmjs.org"
+            ],
+
+            "anthropic": [
+                "api.anthropic.com",
+                "*.claude.com",
+                "claude.com"
+            ],
+
+            "github": [
+                "*.github.com",
+                "github.com"
+            ]
+        }
+
+    },
+
+    // in case user wants to modify the generated compose/flake
+    // normally we warn them and tell them to run with `--impure`
+    disable_config_integrity_check: false
+}
