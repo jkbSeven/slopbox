@@ -1,150 +1,120 @@
 {
     "version": 1,
 
-    "flake": "/path/to/flake.nix", // exclusive with "agent_image" and "custom_agent_image"
+    "imports": [  // configs to merge with
+        "/abs/path/to/config",
+        "rel/path/to/config"
+    ],
 
-    "agent": {
-        // we need to have separate `pkgs` key, so that we can use them for both docker and microvm
-        "pkgs": [],  // names from nixpkgs
+    // `self` references the entire config, while `config` references the currently processed config/profile
+    "default": "${self.config-1}",
 
-        // but what if someone wants to use pkgs from outside nixpkgs????
-        // maybe slopbox.agentPkgs output from user's flake? then this option would be exclusive with `pkgs`
-        // and would default to true if `flake` is set
-        "use_pkgs_from_flake": false,  
+    // flakes in projects can provide additional pkgs and proxy addrs to use
+    "discover_flakes_in_workdirs": true,
+    "auto_read_compose_override": true,
+
+    // example profile
+    "config-1": {  // generates `.local/state/slopbox/<config-hash>/{flake.nix,flake.lock,compose.yaml}`
+
+        // flake contains pkgs, docker agent image, and basically all config options that are declared through this JSON
+        "flake": "/path/to/flake.nix#slopbox.config-1", // defaults to '#slopbox.default'
+
+        "pkgs": [],  // uses nixpkgs, exclusive with flake (?)
+        "use_base_pkgs": true,  // bash, coreutils, etc.
+
+        "agent": "claude-code|codex|opencode",  // for image generation required, if user has a custom image, then this is a hint for mounts and proxy
+        "use_default_agent_mounts": true,
+        "use_default_agent_proxy": true,
 
         "workdir": "/workspace",
+        "default_runtime": "vm|container",
 
         "container": {
+            "runtime": "runsc",
 
-            // exclusive with "custom_agent_image"
-            "image": {
-                "name": "slopbox",
-                "tag": "latest",
-                "agent_pkg": "opencode", // how to make default mounts out of that???
-                "use_base_pkgs": true, // whether to use core pkgs from the slopbox flake (e.g. coreutils, grep)
-                "additional_pkgs": [  // names from nixpkgs
-                    "python314",
-                    "nodejs",
-                    "gnumake"
-                ]
-            },
+            // if docker is not rootless
+            "user": "1000:1000",
 
-            // maybe combine `image` and `custom_image`; distinction whether `build: true` is set?
-            // also for the nix image, the agent_pkg would have to be set, here can be null
-            // maybe also a `pull: true`? so we have both `build`, `pull`.
-            // `pull` implies an existing image, `build` implies building an image with nix
-            // default: `build: true, pull: false`
-            // or `pull: true|"always"|"if_needed"`?
-            // but how will I know whether the nix-built image needs to be rebuilt? `$ slopbox build` to force build?
-            // need to have change detection so user is aware when running on outdated image
-            "custom_image": {
-                "name": "<image_name>",
-
-                // so that we know what default mounts are needed
-                // default = null; user has to manually mount agent-specific volumes
-                "agent_pkg": "<agent_pkg_name>"
-            },
-
-            // default to what's available; if >1 , then flake -> agent_image -> custom_agent_image
-            "agent_image_source": "<image|custom_image|flake>",
-
-            // in case user wants to use a custom runtime, e.g. gVisor (runsc)
-            "runtime": "runc",
-
-            "mounts": {} // will be merged with the toplevel `agent.mounts`
-        },
-
-        "vm": {
-            "backend": "qemu", // not sure if want to bother with this, maybe enforce qemu, at least at the beginning
-
-            "agent_pkg": "opencode",
-
-            // whether to use core pkgs from the slopbox flake (e.g. coreutils, grep)
-            "use_base_pkgs": true,  // this is different from `agent.pkgs`!
-
-            "additional_pkgs": [],
-
-            "mounts": {} // will be merged with the toplevel `agent.mounts`
-
-            // not sure what else to put here yet
-        },
-
-        "mounts": {}
-    },
-
-    "proxy": {
-        // default to true, but let user turn this off -> we don't spawn the proxy in compose nor do we use the custom proxy
-        "enable": true,
-
-        "force_https": true,
-
-        "allowlist": [
-            "${config.presets.proxy.python}",
-            "${config.presets.proxy.github}",
-            "some.custom.domain.tld.xxx"
-        ],
-
-        // in case user has their own proxy running and doesn't want to use slopbox 3proxy setup
-        // need to check if `custom` is an object or null; default to null, so we use 3proxy
-        "custom": {
-            "http_proxy": "http://proxy:7777",
-            "https_proxy": "https://proxy:7777",
-            "no_proxy": ["localhost", "127.0.0.1"]
-        }
-    },
-
-    "presets": {
-        "mounts": {
-            "cwd": ".:${config.agent.workspace}",
-            "git": ".git:${config.agent.workspace}/.git:ro",
-            "secrets": "secrets:${config.agent.workspace}/secrets:ro",
-            "opencode": {
-                "config": "",
-                "data": ""
-            },
-            "claude-code": {
-                "config": "",
-                "data": ""
-            },
-            "codex": {
-                "config": "",
-                "data": ""
+            "image": {  // in case user wants to pass an existing image they've built manually
+                "name": "",
+                "tag": "",
+                "hash": ""
             }
         },
 
-        // only used for the default 3proxy; doesn't do anything if `config.proxy.custom is defined`
+        // if user puts a `compose.override.yaml` in config dir, then it's autoread
+        "auto_read_compose_override": true,
+        "compose_override_path": "/path/to/compose.override.yaml",
+
+        "vm": {
+            "backend": "qemu"
+        },
+
+        "mounts": [
+            "cwd", // mounts cwd (read,write) to `config.<config_name>.workdir` (e.g. docker: `.:/workspace`)
+            "git-ro", // mounts git from cwd but readonly (e.g. docker: `.git:/workspace/.git:ro`)
+            "claude-code", // claude-specific directories/files, need to figure out a way to override
+            "secrets"  // read from `config.presets.mounts.secrets`
+        ],
+
         "proxy": {
+            // default to true, but let user turn this off
+            // if false: we don't spawn the proxy in compose nor do we use the custom proxy
+            "enable": true,
+            "force_https": true,
 
-            "python": [
-                "*.pypi.org",
-                "pypi.org",
-                "*.pythonhosted.org"
+            "allowlist": [
+                // we have some ready-to-use proxy presets
+                "python",
+                "nodejs",
+                "github",
+
+                // ad-hoc
+                "some.custom.domain.tld.xxx",
+
+                // user presets (`config.presets.proxy`)
+                "work-git"
             ],
 
-            "js": [
-                "*.npmjs.com",
-                "npmjs.com",
-
-                "*.npmjs.org",
-                "npmjs.org",
-                "registry.npmjs.org"
-            ],
-
-            "anthropic": [
-                "api.anthropic.com",
-                "*.claude.com",
-                "claude.com"
-            ],
-
-            "github": [
-                "*.github.com",
-                "github.com"
-            ]
+            "custom": {
+                "http_proxy": "http://proxy:7777",
+                "https_proxy": "https://proxy:7777",
+                "no_proxy": ["localhost", "127.0.0.1"]
+            }
         }
-
     },
 
-    // in case user wants to modify the generated compose/flake
-    // normally we warn them and tell them to run with `--impure`
-    disable_config_integrity_check: false
+    // copies config-1 and overrides agent + proxy attributes
+    // config-1 remains unchanged
+    "config-2": "${self.config-1.override codex-agent,no-proxy}",
+
+    "overrides": {
+        "codex-agent": {
+            "agent": "codex"
+        },
+        "no-proxy": {
+            "proxy": {
+                "enable": false
+            }
+        }
+    }
+
+    // so user's can have reusable mounts and configs
+    "presets": {
+        "mounts": {
+            "secrets": "/local/path/to/secrets:${config.agent.workdir}/secrets:ro",
+            "secrets2": {
+                "src": "/local/path/to/secrets",
+                "dest": "${config.agent.workdir}/secrets",
+                "options": "ro"
+            }
+        },
+
+        // only used for the default 3proxy; doesn't do anything if `config.proxy.custom` is defined (not null)
+        "proxy": {
+            "work-git": [
+                "git.example.com"
+            ]
+        }
+    }
 }
