@@ -6,18 +6,18 @@
         "rel/path/to/config"
     ],
 
-    // `self` references the entire config, while `config` references the currently processed config/profile
-    "default": "${self.config-1}",
+    // `config` references the entire config, while `profile` references the currently processed slopbox profile
+    "default": "${config.profile-1}",
 
     // flakes in projects can provide additional pkgs and proxy addrs to use
     "discover_flakes_in_workdirs": true,
     "auto_read_compose_override": true,
 
     // example profile
-    "config-1": {  // generates `.local/state/slopbox/<config-hash>/{flake.nix,flake.lock,compose.yaml}`
+    "profile-1": {  // generates `.local/state/slopbox/<profile-hash>/{flake.nix,flake.lock,compose.yaml}`
 
         // flake contains pkgs, docker agent image, and basically all config options that are declared through this JSON
-        "flake": "/path/to/flake.nix#slopbox.config-1", // defaults to '#slopbox.default'
+        "flake": "/path/to/flake.nix#slopbox.profile-1", // defaults to '#slopbox.default'
 
         "pkgs": [],  // uses nixpkgs, exclusive with flake (?)
         "use_base_pkgs": true,  // bash, coreutils, etc.
@@ -84,9 +84,9 @@
         }
     },
 
-    // copies config-1 and overrides agent + proxy attributes
-    // config-1 remains unchanged
-    "config-2": "${self.config-1.override codex-agent,no-proxy}",
+    // copies profile-1 and overrides agent + proxy attributes
+    // profile-1 remains unchanged
+    "profile-2": "${config.profile-1.override codex-agent,no-proxy}",
 
     "overrides": {
         "codex-agent": {
@@ -102,10 +102,10 @@
     // so user's can have reusable mounts and configs
     "presets": {
         "mounts": {
-            "secrets": "/local/path/to/secrets:${config.agent.workdir}/secrets:ro",
+            "secrets": "/local/path/to/secrets:${profile.agent.workdir}/secrets:ro",
             "secrets2": {
                 "src": "/local/path/to/secrets",
-                "dest": "${config.agent.workdir}/secrets",
+                "dest": "${profile.agent.workdir}/secrets",
                 "options": "ro"
             }
         },
