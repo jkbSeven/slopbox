@@ -91,6 +91,33 @@
         }
       );
 
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        {
+          default = pkgs.mkShell {
+            packages = [
+              pkgs.python314
+              pkgs.uv
+            ];
+
+            # running `ruff` downloaded through uv will still fail on NixOS though
+            # need to use nix-ld to get it to work
+            env = lib.optionalAttrs pkgs.stdenv.isLinux {
+              LD_LIBRARY_PATH = lib.makeLibraryPath pkgs.pythonManylinuxPackages.manylinux1;
+            };
+
+            shellHook = ''
+              unset PYTHONPATH
+              uv sync
+              . .venv/bin/activate
+            '';
+          };
+        }
+      );
+
       formatter = forAllSystems (
         system:
         let
