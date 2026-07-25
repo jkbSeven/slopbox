@@ -1,14 +1,13 @@
 {
     "version": 1,
 
-    // flakes in projects can provide additional pkgs and proxy addrs to use
-    "discover_flakes_in_workdirs": true,
     "auto_read_compose_override": true,
 
     "profiles": {
         "default": "python",
         "python": {
-            // flake contains pkgs, docker agent image, and basically all config options that are declared through this JSON
+            // flake slopbox profile contains functions for building a container image and a vm
+            // exclusive with `pkgs` and `use_base_pkgs`; the other configuration options remain unchanged
             "flake": "/path/to/flake.nix#slopbox.python314-uv"
         },
         "profile-1": {  // generates `.local/state/slopbox/<profile-hash>/{flake.nix,flake.lock,compose.yaml}`
@@ -22,26 +21,9 @@
             "workdir": "/workspace",
             "default_runtime": "vm|container",
 
-            "container": {
-                "runtime": "runsc",
-
-                // if docker is not rootless
-                "user": "1000:1000",
-
-                "image": {  // in case user wants to pass an existing image they've built manually
-                    "name": "",
-                    "tag": "",
-                    "hash": ""
-                }
-            },
-
             // if user puts a `compose.override.yaml` in config dir, then it's autoread
             "auto_read_compose_override": true,
-            "compose_override_path": "/path/to/compose.override.yaml",
-
-            "vm": {
-                "backend": "qemu"
-            },
+            "compose_override_path": "/path/to/compose.override.yaml", // if null, then we assume it's present in the state dir
 
             "mounts": [
                 "cwd", // mounts cwd (read,write) to `config.<config_name>.workdir` (e.g. docker: `.:/workspace`)
