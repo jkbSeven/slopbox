@@ -1,0 +1,94 @@
+{
+    "version": 1,
+
+    // flakes in projects can provide additional pkgs and proxy addrs to use
+    "discover_flakes_in_workdirs": true,
+    "auto_read_compose_override": true,
+
+    "profiles": {
+        "default": "python",
+        "python": {
+            // flake contains pkgs, docker agent image, and basically all config options that are declared through this JSON
+            "flake": "/path/to/flake.nix#slopbox.python314-uv"
+        },
+        "profile-1": {  // generates `.local/state/slopbox/<profile-hash>/{flake.nix,flake.lock,compose.yaml}`
+            "pkgs": [],  // uses nixpkgs, exclusive with flake (?)
+            "use_base_pkgs": true,  // bash, coreutils, etc.
+
+            "agent": "claude-code|codex|opencode",  // for image generation required, if user has a custom image, then this is a hint for mounts and proxy
+            "use_default_agent_mounts": true,
+            "use_default_agent_proxy": true,
+
+            "workdir": "/workspace",
+            "default_runtime": "vm|container",
+
+            "container": {
+                "runtime": "runsc",
+
+                // if docker is not rootless
+                "user": "1000:1000",
+
+                "image": {  // in case user wants to pass an existing image they've built manually
+                    "name": "",
+                    "tag": "",
+                    "hash": ""
+                }
+            },
+
+            // if user puts a `compose.override.yaml` in config dir, then it's autoread
+            "auto_read_compose_override": true,
+            "compose_override_path": "/path/to/compose.override.yaml",
+
+            "vm": {
+                "backend": "qemu"
+            },
+
+            "mounts": [
+                "cwd", // mounts cwd (read,write) to `config.<config_name>.workdir` (e.g. docker: `.:/workspace`)
+                "git-ro", // mounts git from cwd but readonly (e.g. docker: `.git:/workspace/.git:ro`)
+                "claude-code", // claude-specific directories/files, need to figure out a way to override
+                "secrets"  // read from `config.presets.mounts.secrets`
+            ],
+
+            "proxy": {
+                // default to true, but let user turn this off
+                // if false: we don't spawn the proxy in compose nor do we use the custom proxy
+                "enable": true,
+
+                "allowlist": [
+                    // we have some ready-to-use proxy presets
+                    "python",
+                    "nodejs",
+                    "github",
+
+                    // ad-hoc
+                    "some.custom.domain.tld.xxx",
+
+                    // user presets (`config.presets.proxy`)
+                    "work-git"
+                ],
+
+                "custom": {
+                    "http_proxy": "http://proxy:7777",
+                    "https_proxy": "https://proxy:7777",
+                    "no_proxy": ["localhost", "127.0.0.1"]
+                }
+            }
+        }
+    },
+
+
+    // so user's can have reusable mounts and configs
+    "presets": {
+        "mounts": {
+            "secrets": "/local/path/to/secrets:${profile.agent.workdir}/secrets:ro"
+        },
+
+        // only used for the default 3proxy; doesn't do anything if `config.proxy.custom` is defined (not null)
+        "proxy": {
+            "work-git": [
+                "git.example.com"
+            ]
+        }
+    }
+}
