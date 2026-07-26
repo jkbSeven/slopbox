@@ -85,8 +85,8 @@ type ProfilesDict = dict[Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_
 
 
 class Presets(BaseModel):
-    mounts: dict[Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_-]")], MountConfigStr] | None = None
-    proxy: dict[Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_-]")], list[str]] | None = None
+    mounts: dict[Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_-]")], MountConfigStr | list[MountConfigStr]] | None = None
+    proxy: dict[Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_-]")], str | list[str]] | None = None
 
 
 class UserConfig(BaseModel):
@@ -160,3 +160,40 @@ class UserConfig(BaseModel):
                 profile.auto_read_compose_override = self.auto_read_compose_override
 
         return self
+
+    def resolve_presets(self) -> None:
+        for _, profile in self.profiles.items():
+
+            if profile.mounts is not None and self.presets.mounts is not None:
+
+                resolved_mounts = []
+                for mount in profile.mounts:
+
+                    if mount not in self.presets.mounts:
+                        resolved_mounts.append(mount)
+                        continue
+
+                    t = self.presets.mounts[mount]
+                    if isinstance(t, list):
+                        resolved_mounts.extend(t)
+                    else:
+                        resolved_mounts.append(t)
+
+                profile.mounts = resolved_mounts
+
+            if profile.proxy.allowlist is not None and self.presets.proxy is not None:
+
+                resolved_entries = []
+                for entry in profile.proxy.allowlist:
+
+                    if entry not in self.presets.proxy:
+                        resolved_entries.append(entry)
+                        continue
+
+                    t = self.presets.proxy[entry]
+                    if isinstance(t, list):
+                        resolved_entries.extend(t)
+                    else:
+                        resolved_entries.append(t)
+
+                profile.proxy.allowlist = resolved_entries
