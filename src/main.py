@@ -15,6 +15,9 @@ STATE_DIR = DEFAULT_STATE_DIR
 EXAMPLE_CONFIG_FILE = Path(__file__).parent / "templates" / "config.json"
 assert EXAMPLE_CONFIG_FILE.exists()
 
+def _read_user_config() -> UserConfig:
+    return UserConfig.model_validate_json(CONFIG_FILE.read_text())
+
 @click.group()
 @click.option("--config", envvar="SLOPBOX_CONFIG_FILE")
 @click.option("--state-dir", envvar="SLOPBOX_STATE_DIR")
@@ -47,7 +50,7 @@ def init(path: Path):
 @cli.command()
 @click.option("--resolve-presets/--no-resolve-presets", default=True)
 def config(resolve_presets: bool):
-    c = UserConfig.model_validate_json(CONFIG_FILE.read_text())
+    c = _read_user_config()
 
     if resolve_presets:
         c.resolve_presets()

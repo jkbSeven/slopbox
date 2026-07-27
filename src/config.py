@@ -7,11 +7,11 @@ from const import Agent, SlopboxRuntime
 
 import presets as slopbox_presets
 
-type NixPkgName = Annotated[str, Field(min_length=1, pattern="^[a-zA-Z0-9_-]+$")]
-
-GENERIC_NAME_PATTERN = "^[a-zA-Z0-9_-]+$"
+GENERIC_NAME_PATTERN = "^[a-zA-Z0-9_][a-zA-Z0-9][a-zA-Z0-9_-]*$"
 
 SCHEMA_VERSION = 1
+
+type NameStr = Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)]
 
 
 def _validate_mount_str(v: str) -> str:
@@ -41,7 +41,7 @@ def _validate_mount_str(v: str) -> str:
 
 
 type MountConfigStr = Annotated[str, AfterValidator(_validate_mount_str)]
-type MountPresetName = Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)]
+type MountPresetName = NameStr
 type Mount = MountConfigStr | MountPresetName
 
 
@@ -59,7 +59,7 @@ class Proxy(BaseModel):
 
 class Profile(BaseModel):
     flake: Path | None = None
-    pkgs: list[NixPkgName] | None = None
+    pkgs: list[NameStr] | None = None
     use_base_pkgs: bool = True
 
     agent: Agent
@@ -96,12 +96,12 @@ class Profile(BaseModel):
         return self
 
 
-type ProfilesDict = dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], Profile]
+type ProfilesDict = dict[NameStr, Profile]
 
 
 class Presets(BaseModel):
-    mounts: Annotated[dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], MountConfigStr | list[MountConfigStr]], Field(default_factory=dict)]
-    proxy: Annotated[dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], str | list[str]], Field(default_factory=dict)]
+    mounts: Annotated[dict[NameStr, MountConfigStr | list[MountConfigStr]], Field(default_factory=dict)]
+    proxy: Annotated[dict[NameStr, str | list[str]], Field(default_factory=dict)]
 
 
 def resolve_presets(src: list[str], presets: dict[str, str | list[str]]) -> list[str]:
@@ -138,7 +138,7 @@ class UserConfig(BaseModel):
             raise ValueError("'version' field must be an int")
 
         if value != SCHEMA_VERSION:
-            raise ValueError(f"Schema version of your config (version={value}) is not supported. Your version of slopbox expects version {SCHEMA_VERSION}")
+            raise ValueError(f"Schema version of your config (version={value}) is not supported. Current slopbox release expects version {SCHEMA_VERSION}")
 
         return value
 
