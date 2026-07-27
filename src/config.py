@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -94,6 +95,9 @@ class Profile(BaseModel):
             self.proxy.allowlist.append(self.agent.value)
 
         return self
+
+    def hash(self) -> str:
+        return hashlib.sha256(self.model_dump_json().encode(encoding="utf-8")).hexdigest()
 
 
 type ProfilesDict = dict[NameStr, Profile]

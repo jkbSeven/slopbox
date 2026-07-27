@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import click
@@ -15,8 +16,10 @@ STATE_DIR = DEFAULT_STATE_DIR
 EXAMPLE_CONFIG_FILE = Path(__file__).parent / "templates" / "config.json"
 assert EXAMPLE_CONFIG_FILE.exists()
 
+
 def _read_user_config() -> UserConfig:
     return UserConfig.model_validate_json(CONFIG_FILE.read_text())
+
 
 @click.group()
 @click.option("--config", envvar="SLOPBOX_CONFIG_FILE")
@@ -49,11 +52,17 @@ def init(path: Path):
 
 @cli.command()
 @click.option("--resolve-presets/--no-resolve-presets", default=True)
-def config(resolve_presets: bool):
+@click.option("--profile-hashes/--no-profile-hashes", default=False)
+def config(resolve_presets: bool, profile_hashes: bool):
     c = _read_user_config()
 
-    if resolve_presets:
+    if resolve_presets or profile_hashes:
         c.resolve_presets()
+
+    if profile_hashes:
+        mapping = {name: profile.hash() for name, profile in c.profiles.items()}
+        click.echo(json.dumps(mapping, indent=2))
+        return
 
     click.echo(c.model_dump_json(indent=2))
 
