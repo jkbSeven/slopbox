@@ -1,12 +1,15 @@
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
-from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, model_validator
+from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, field_validator, model_validator
 
 from const import Agent, SlopboxRuntime
 
-type UserConfigVersion = Annotated[int, Field(ge=1)]
-type NixPkgName = Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_-]+")]
+type NixPkgName = Annotated[str, Field(min_length=1, pattern="^[a-zA-Z0-9_-]+$")]
+
+GENERIC_NAME_PATTERN = "^[a-zA-Z0-9_-]+$"
+
+SCHEMA_VERSION = 1
 
 
 def _validate_mount_str(v: str) -> str:
@@ -36,7 +39,7 @@ def _validate_mount_str(v: str) -> str:
 
 
 type MountConfigStr = Annotated[str, AfterValidator(_validate_mount_str)]
-type MountPresetName = Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_-]+")]
+type MountPresetName = Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)]
 type Mount = MountConfigStr | MountPresetName
 
 
@@ -48,7 +51,7 @@ class CustomProxy(BaseModel):
 
 class Proxy(BaseModel):
     enable: bool = True
-    allowlist: list[Annotated[str, Field(min_length=1)]] | None = None
+    allowlist: Annotated[list[Annotated[str, Field(min_length=1)]], Field(default_factory=list)]
     custom: CustomProxy | None = None
 
 
@@ -68,8 +71,8 @@ class Profile(BaseModel):
     auto_read_compose_override: bool | None = None
     compose_override_path: Path | None = None
 
-    mounts: list[Mount] | None = None
-    proxy: Proxy = Proxy()
+    mounts: Annotated[list[Mount], Field(default_factory=list)]
+    proxy: Annotated[Proxy, Field(default_factory=Proxy)]
 
     @model_validator(mode="after")
     def _validate_exclusive_flake_and_pkgs(self) -> "Profile":
@@ -81,26 +84,55 @@ class Profile(BaseModel):
         return self
 
 
-type ProfilesDict = dict[Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_-]")], Profile]
+type ProfilesDict = dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], Profile]
 
 
 class Presets(BaseModel):
-    mounts: dict[Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_-]")], MountConfigStr | list[MountConfigStr]] | None = None
-    proxy: dict[Annotated[str, Field(min_length=1, pattern="[a-zA-Z0-9_-]")], str | list[str]] | None = None
+    mounts: dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], MountConfigStr | list[MountConfigStr]] | None = None
+    proxy: dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], str | list[str]] | None = None
+
+
+def resolve_presets(src: list[str], presets: dict[str, str | list[str]] | None) -> list[str]:
+    if presets is None or len(src) < 1:
+        return src
+
+    resolved = []
+
+    for entry in src:
+
+        if entry not in presets:
+            resolved.append(entry)
+            continue
+
+        t = presets[entry]
+        if isinstance(t, list):
+            resolved.extend(t)
+        else:
+            resolved.append(t)
+
+    return resolved
 
 
 class UserConfig(BaseModel):
-    version: UserConfigVersion
+    version: int
     auto_read_compose_override: bool = True
     profiles: ProfilesDict
     presets: Presets = Presets()
 
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_supported_schema_version(cls, value: Any) -> int:
+        if not isinstance(value, int):
+            raise ValueError("'version' field must be an int")
+
+        if value != SCHEMA_VERSION:
+            raise ValueError(f"Schema version of your config (version={value}) is not supported. Your version of slopbox expects version {SCHEMA_VERSION}")
+
+        return value
+
     @model_validator(mode="after")
     def _validate_mount_presets_exist(self) -> "UserConfig":
         for name, profile in self.profiles.items():
-
-            if profile.mounts is None:
-                return self
 
             for mount in profile.mounts:
 
@@ -163,37 +195,5 @@ class UserConfig(BaseModel):
 
     def resolve_presets(self) -> None:
         for _, profile in self.profiles.items():
-
-            if profile.mounts is not None and self.presets.mounts is not None:
-
-                resolved_mounts = []
-                for mount in profile.mounts:
-
-                    if mount not in self.presets.mounts:
-                        resolved_mounts.append(mount)
-                        continue
-
-                    t = self.presets.mounts[mount]
-                    if isinstance(t, list):
-                        resolved_mounts.extend(t)
-                    else:
-                        resolved_mounts.append(t)
-
-                profile.mounts = resolved_mounts
-
-            if profile.proxy.allowlist is not None and self.presets.proxy is not None:
-
-                resolved_entries = []
-                for entry in profile.proxy.allowlist:
-
-                    if entry not in self.presets.proxy:
-                        resolved_entries.append(entry)
-                        continue
-
-                    t = self.presets.proxy[entry]
-                    if isinstance(t, list):
-                        resolved_entries.extend(t)
-                    else:
-                        resolved_entries.append(t)
-
-                profile.proxy.allowlist = resolved_entries
+            profile.mounts = resolve_presets(profile.mounts, self.presets.mounts)
+            profile.proxy.allowlist = resolve_presets(profile.proxy.allowlist, self.presets.proxy)

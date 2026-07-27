@@ -31,7 +31,7 @@ def config(resolve_presets: bool):
     if resolve_presets:
         c.resolve_presets()
 
-    click.echo(c.model_dump_json(indent=2, exclude_unset=True))
+    click.echo(c.model_dump_json(indent=2))
 
 
 @cli.command()
