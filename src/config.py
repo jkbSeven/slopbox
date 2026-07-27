@@ -2,17 +2,20 @@ import hashlib
 from pathlib import Path
 from typing import Annotated, Any
 
+from jinja2 import Environment, FileSystemLoader
 from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, field_validator, model_validator
 
+import presets as slopbox_presets
 from const import Agent, SlopboxRuntime
 
-import presets as slopbox_presets
 
 GENERIC_NAME_PATTERN = "^[a-zA-Z0-9_][a-zA-Z0-9][a-zA-Z0-9_-]*$"
 
 SCHEMA_VERSION = 1
 
 type NameStr = Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)]
+
+jinja_env = Environment(loader=FileSystemLoader(str(Path(__file__).parent / "templates")))
 
 
 def _validate_mount_str(v: str) -> str:
@@ -98,6 +101,10 @@ class Profile(BaseModel):
 
     def hash(self) -> str:
         return hashlib.sha256(self.model_dump_json().encode(encoding="utf-8")).hexdigest()
+
+    def render_proxy_config(self) -> str:
+        template = jinja_env.get_template("3proxy.cfg.j2")
+        return template.render(allowlist=self.proxy.allowlist)
 
 
 type ProfilesDict = dict[NameStr, Profile]
