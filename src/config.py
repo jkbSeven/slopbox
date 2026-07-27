@@ -8,7 +8,6 @@ from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, field_valida
 import presets as slopbox_presets
 from const import Agent, SlopboxRuntime
 
-
 GENERIC_NAME_PATTERN = "^[a-zA-Z0-9_][a-zA-Z0-9][a-zA-Z0-9_-]*$"
 
 SCHEMA_VERSION = 1
@@ -51,7 +50,7 @@ type Mount = MountConfigStr | MountPresetName
 
 class CustomProxy(BaseModel):
     http_proxy: Annotated[str, Field(min_length=1)]
-    https_proxy: Annotated[str, Field(min_length=1)] 
+    https_proxy: Annotated[str, Field(min_length=1)]
     no_proxy: list[Annotated[str, Field(min_length=1)]]
 
 
@@ -122,7 +121,6 @@ def resolve_presets(src: list[str], presets: dict[str, str | list[str]]) -> list
     resolved = []
 
     for entry in src:
-
         if entry not in presets:
             resolved.append(entry)
             continue
@@ -149,7 +147,9 @@ class UserConfig(BaseModel):
             raise ValueError("'version' field must be an int")
 
         if value != SCHEMA_VERSION:
-            raise ValueError(f"Schema version of your config (version={value}) is not supported. Current slopbox release expects version {SCHEMA_VERSION}")
+            raise ValueError(
+                f"Schema version of your config (version={value}) is not supported. Current slopbox release expects version {SCHEMA_VERSION}"
+            )
 
         return value
 
@@ -164,61 +164,56 @@ class UserConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_mount_presets_exist(self) -> "UserConfig":
         for name, profile in self.profiles.items():
-
             for mount in profile.mounts:
-
                 try:
                     TypeAdapter(MountConfigStr).validate_python(mount)
 
                 except ValueError:
                     if self.presets.mounts is None:
                         raise ValueError(
-                                f"Invalid mount '{mount}' in profile '{name}'. "
-                                "Your config does not define any presets, "
-                                "and the given mount is not a valid 'host:guest:options' mount"
-                            )
+                            f"Invalid mount '{mount}' in profile '{name}'. "
+                            "Your config does not define any presets, "
+                            "and the given mount is not a valid 'host:guest:options' mount"
+                        )
 
                     if mount not in self.presets.mounts:
                         raise ValueError(
-                                f"Invalid mount '{mount}' in profile '{name}'. "
-                                "Preset with such name does not exist in your config, "
-                                "and the given mount is not a valid 'host:guest:options' mount"
-                            )
+                            f"Invalid mount '{mount}' in profile '{name}'. "
+                            "Preset with such name does not exist in your config, "
+                            "and the given mount is not a valid 'host:guest:options' mount"
+                        )
 
         return self
 
     @model_validator(mode="after")
     def _validate_proxy_presets_exist(self) -> "UserConfig":
         for name, profile in self.profiles.items():
-
             if profile.proxy.enable is False or profile.proxy.allowlist is None:
                 return self
 
             for entry in profile.proxy.allowlist:
-
                 if "." in entry:
                     continue
 
                 if self.presets.proxy is None:
                     raise ValueError(
-                            f"Invalid entry in proxy allowlist '{entry}' in profile '{name}'. "
-                            "Your config does not define any presets, "
-                            "and the given entry is not a valid domain"
-                        )
+                        f"Invalid entry in proxy allowlist '{entry}' in profile '{name}'. "
+                        "Your config does not define any presets, "
+                        "and the given entry is not a valid domain"
+                    )
 
                 if entry not in self.presets.proxy:
                     raise ValueError(
-                            f"Invalid entry in proxy allowlist '{entry}' in profile '{name}'. "
-                            "Preset with such name does not exist in your conifg, "
-                            "and the given entry is not a valid domain"
-                        )
+                        f"Invalid entry in proxy allowlist '{entry}' in profile '{name}'. "
+                        "Preset with such name does not exist in your conifg, "
+                        "and the given entry is not a valid domain"
+                    )
 
         return self
 
     @model_validator(mode="after")
     def _set_compose_override_in_profiles(self) -> "UserConfig":
         for _, profile in self.profiles.items():
-
             if profile.auto_read_compose_override is None:
                 profile.auto_read_compose_override = self.auto_read_compose_override
 

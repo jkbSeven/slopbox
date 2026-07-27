@@ -5,7 +5,6 @@ import click
 
 from config import UserConfig
 
-
 DEFAULT_CONFIG_DIR = Path.home() / ".config" / "slopbox"
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.json"
 CONFIG_FILE = DEFAULT_CONFIG_FILE

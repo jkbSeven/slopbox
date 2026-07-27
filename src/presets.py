@@ -1,6 +1,6 @@
 from const import Agent
 
-__all__ = [ "mounts", "proxy" ]
+__all__ = ["mounts", "proxy"]
 
 mounts = {
     "workdir": ".:/workspace",
@@ -32,5 +32,5 @@ proxy = {
         "claude.com",
         "*.claude.com",
         "api.anthropic.com",
-    ]
+    ],
 }
