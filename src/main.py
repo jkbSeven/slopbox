@@ -29,14 +29,19 @@ def cli(config: str | None, state_dir: str | None):
 
 
 @cli.command()
-def init():
-    if CONFIG_FILE.exists():
-        click.echo(f"A slopbox config already exists at {CONFIG_FILE}, not overwriting", err=True)
+@click.argument("path", default=DEFAULT_CONFIG_FILE, type=click.Path(path_type=Path))
+def init(path: Path):
+    # in case user provided a directory
+    if path.suffix == "":
+        raise RuntimeError(f"Provide a full path, it must end with '.json' file extension")
+
+    if path.exists():
+        click.echo(f"A slopbox config already exists at {path}, not overwriting", err=True)
         return
 
-    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    EXAMPLE_CONFIG_FILE.copy(CONFIG_FILE)
-    click.echo(f"Wrote an example config to {CONFIG_FILE}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    EXAMPLE_CONFIG_FILE.copy(path)
+    click.echo(f"Wrote an example config to {path}")
 
 
 @cli.command()
