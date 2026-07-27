@@ -5,6 +5,8 @@ from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, field_valida
 
 from const import Agent, SlopboxRuntime
 
+import presets as slopbox_presets
+
 type NixPkgName = Annotated[str, Field(min_length=1, pattern="^[a-zA-Z0-9_-]+$")]
 
 GENERIC_NAME_PATTERN = "^[a-zA-Z0-9_-]+$"
@@ -83,17 +85,27 @@ class Profile(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def _inject_agent_mounts_and_presets(self) -> "Profile":
+        if self.use_default_agent_mounts:
+            self.mounts.append(self.agent.value)
+
+        if self.use_default_agent_proxy:
+            self.proxy.allowlist.append(self.agent.value)
+
+        return self
+
 
 type ProfilesDict = dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], Profile]
 
 
 class Presets(BaseModel):
-    mounts: dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], MountConfigStr | list[MountConfigStr]] | None = None
-    proxy: dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], str | list[str]] | None = None
+    mounts: Annotated[dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], MountConfigStr | list[MountConfigStr]], Field(default_factory=dict)]
+    proxy: Annotated[dict[Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)], str | list[str]], Field(default_factory=dict)]
 
 
-def resolve_presets(src: list[str], presets: dict[str, str | list[str]] | None) -> list[str]:
-    if presets is None or len(src) < 1:
+def resolve_presets(src: list[str], presets: dict[str, str | list[str]]) -> list[str]:
+    if len(presets) < 1 or len(src) < 1:
         return src
 
     resolved = []
@@ -129,6 +141,14 @@ class UserConfig(BaseModel):
             raise ValueError(f"Schema version of your config (version={value}) is not supported. Your version of slopbox expects version {SCHEMA_VERSION}")
 
         return value
+
+    @model_validator(mode="after")
+    def _add_slopbox_presets_to_presets_obj(self) -> "UserConfig":
+        # ordering of unions matters! user presets override the builtin ones
+        self.presets.mounts = slopbox_presets.mounts | self.presets.mounts
+        self.presets.proxy = slopbox_presets.proxy | self.presets.proxy
+
+        return self
 
     @model_validator(mode="after")
     def _validate_mount_presets_exist(self) -> "UserConfig":
