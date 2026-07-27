@@ -3,6 +3,7 @@ from const import Agent
 __all__ = [ "mounts", "proxy" ]
 
 mounts = {
+    "workdir": ".:/workspace",
     "git-ro": ".git:/workspace/.git:ro",
     Agent.CLAUDE.value: [
         "~/.claude:/home/agent/.claude",

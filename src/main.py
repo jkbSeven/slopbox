@@ -7,20 +7,36 @@ from config import UserConfig
 
 DEFAULT_CONFIG_DIR = Path.home() / ".config" / "slopbox"
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.json"
-
 CONFIG_FILE = DEFAULT_CONFIG_FILE
+
+DEFAULT_STATE_DIR = Path.home() / ".local" / "state" / "slopbox"
+STATE_DIR = DEFAULT_STATE_DIR
+
+EXAMPLE_CONFIG_FILE = Path(__file__).parent / "templates" / "config.json"
+assert EXAMPLE_CONFIG_FILE.exists()
 
 @click.group()
 @click.option("--config", envvar="SLOPBOX_CONFIG_FILE")
-def cli(config: str | None):
+@click.option("--state-dir", envvar="SLOPBOX_STATE_DIR")
+def cli(config: str | None, state_dir: str | None):
     if config is not None:
         global CONFIG_FILE
         CONFIG_FILE = Path(config)
 
+    if state_dir is not None:
+        global STATE_DIR
+        STATE_DIR = Path(state_dir)
+
 
 @cli.command()
 def init():
-    pass
+    if CONFIG_FILE.exists():
+        click.echo(f"A slopbox config already exists at {CONFIG_FILE}, not overwriting", err=True)
+        return
+
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    EXAMPLE_CONFIG_FILE.copy(CONFIG_FILE)
+    click.echo(f"Wrote an example config to {CONFIG_FILE}")
 
 
 @cli.command()
