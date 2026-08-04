@@ -1,6 +1,6 @@
 import hashlib
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, field_validator, model_validator
@@ -109,7 +109,7 @@ class Profile(BaseModel):
         return template.render(allowlist=self.proxy.allowlist)
 
 
-type ProfilesDict = dict[NameStr, Profile]
+type ProfilesDict = dict[NameStr, Profile | NameStr]
 
 
 class Presets(BaseModel):
@@ -166,8 +166,29 @@ class UserConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _validate_referenced_profiles_exist(self) -> UserConfig:
+        for name, profile in self.profiles.items():
+
+            # regular Profile obj
+            if isinstance(profile, Profile):
+                continue
+
+            # referenced profile is present in profiles dict
+            if profile in self.profiles:
+                continue
+
+            raise ValueError(f"Profile '{name}' references a nonexistent profile '{profile}'")
+
+        return self
+
+    @model_validator(mode="after")
     def _validate_mount_presets_exist(self) -> UserConfig:
         for name, profile in self.profiles.items():
+
+            # in case of profile reference
+            if not isinstance(profile, Profile):
+                continue
+
             for mount in profile.mounts:
                 try:
                     TypeAdapter(MountConfigStr).validate_python(mount)
@@ -192,6 +213,11 @@ class UserConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_proxy_presets_exist(self) -> UserConfig:
         for name, profile in self.profiles.items():
+
+            # in case of profile reference
+            if not isinstance(profile, Profile):
+                continue
+
             if profile.proxy.enable is False or profile.proxy.allowlist is None:
                 return self
 
@@ -218,6 +244,11 @@ class UserConfig(BaseModel):
     @model_validator(mode="after")
     def _set_compose_override_in_profiles(self) -> UserConfig:
         for _, profile in self.profiles.items():
+
+            # in case of profile reference
+            if not isinstance(profile, Profile):
+                continue
+
             if profile.auto_read_compose_override is None:
                 profile.auto_read_compose_override = self.auto_read_compose_override
 
@@ -225,5 +256,58 @@ class UserConfig(BaseModel):
 
     def resolve_presets(self) -> None:
         for _, profile in self.profiles.items():
+
+            # in case of profile reference
+            if not isinstance(profile, Profile):
+                continue
+
             profile.mounts = resolve_presets(profile.mounts, self.presets.mounts)
             profile.proxy.allowlist = resolve_presets(profile.proxy.allowlist, self.presets.proxy)
+
+    def resolve_profile_refs(self) -> None:
+        resolved: dict[NameStr, NameStr] = {}  # profile name -> name of the last node that's an actual profile type
+        visiting = set()
+        refs = {name: profile for name, profile in self.profiles.items() if not isinstance(profile, Profile)}
+
+        def _resolve(v: str) -> NameStr:
+            if v in visiting:
+                raise Exception(f"Detected a reference cycle for profile '{v}'")
+
+            if v in resolved:
+                return resolved[v]
+
+            visiting.add(v)
+            ref = refs[v]
+
+            if ref in refs:
+                n = _resolve(ref)
+
+                resolved[v] = n
+                visiting.remove(v)
+
+                return n
+
+            else:
+                resolved[v] = ref
+                visiting.remove(v)
+
+                return ref
+
+        for v in refs:
+            self.profiles[v] = self.profiles[_resolve(v)]
+
+
+    def build(self, profile_name: str, state_dir: Path) -> None:
+        self.resolve_presets()
+
+        # casting to Profile type after profile refs have been resolved
+        self.resolve_profile_refs()
+        profile = cast(Profile, self.profiles[profile_name])
+
+        profile_hash = profile.hash()
+        profile_dir = state_dir / profile_hash
+
+        if profile_dir.is_dir():
+            raise Exception("Profile build exists already")
+
+        profile_dir.mkdir(parents=True)

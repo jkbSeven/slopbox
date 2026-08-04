@@ -4,7 +4,9 @@ from pathlib import Path
 
 import click
 
-from config import UserConfig
+from config import SCHEMA_VERSION, UserConfig
+
+VERSION = "0.1.0"
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -98,18 +100,29 @@ def init(path: Path):
 
 
 @cli.command()
-@click.option("--resolve-presets/--no-resolve-presets", default=True)
-@click.option("--profile-hashes/--no-profile-hashes", default=False)
-def config(resolve_presets: bool, profile_hashes: bool):
+@click.option("--resolved/--plain", default=False)
+@click.option("--resolve-presets/--no-resolve-presets", default=False)
+@click.option("--resolve-profile-refs/--no-resolve-profile-refs", default=False)
+@click.option("--hashes/--no-hashes", default=False)
+def config(resolved: bool, resolve_presets: bool, resolve_profile_refs: bool, hashes: bool):
     c = _read_user_config()
 
-    if resolve_presets or profile_hashes:
+    if hashes:
         c.resolve_presets()
-
-    if profile_hashes:
+        c.resolve_profile_refs()
         mapping = {name: profile.hash() for name, profile in c.profiles.items()}
         click.echo(json.dumps(mapping, indent=2))
         return
+
+    if resolved:
+        resolve_presets = True
+        resolve_profile_refs = True
+
+    if resolve_presets:
+        c.resolve_presets()
+
+    if resolve_profile_refs:
+        c.resolve_profile_refs()
 
     click.echo(c.model_dump_json(indent=2))
 
@@ -124,9 +137,9 @@ def build(profile: str):
         # extra handling to let user know they can set "default" = "<some_existing_profile_name>"
         if profile == "default":
             raise click.ClickException(
-                "Profile 'default' does not exist. "
-                f"You can create this profile in your config ({CONFIG_FILE}) following the structure from the docs, "
-                "or you can reference an existing profile, "
+                "Slopbox uses the 'default' profile by default, however, this profile does not exist in your config. "
+                f"You can create this profile (in {CONFIG_FILE}) following the structure from the docs, "
+                "or you can reference an existing profile by name, "
                 'i.e. set {"profiles": {"default": "<name_of_existing_profile>"}}. '
                 "Alternatively you can choose a profile through the `--profile/-p` option, "
                 "e.g. slopbox build --profile claude-python"
@@ -136,6 +149,8 @@ def build(profile: str):
             f"Profile '{profile}' does not exist in your config ({CONFIG_FILE})",
         )
 
+    # cfg.build(state_dir=STATE_DIR)
+
 
 @cli.command()
 def run():
@@ -144,7 +159,10 @@ def run():
 
 @cli.command()
 def health():
-    pass
+    click.echo(f"Version: {VERSION}")
+    click.echo(f"Schema version: {SCHEMA_VERSION}")
+    click.echo(f"Config path: {CONFIG_FILE}")
+    click.echo(f"State dir: {STATE_DIR}")
 
 
 if __name__ == "__main__":
