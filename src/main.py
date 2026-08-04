@@ -3,8 +3,9 @@ import logging
 from pathlib import Path
 
 import click
+from pydantic import TypeAdapter
 
-from config import SCHEMA_VERSION, UserConfig
+from config import SCHEMA_VERSION, ProfilesHashes, UserConfig
 
 VERSION = "0.1.0"
 
@@ -99,6 +100,25 @@ def init(path: Path):
     click.echo(f"Wrote an example config to {path}")
 
 
+def _build_inclusion_dict(fields: str) -> dict:
+    fs = fields.split(",")
+    f = {}
+    for field in fs:
+        fs2 = field.split(".")
+        last = len(fs2) - 1
+
+        curr = f
+        for i, key in enumerate(fs2):
+            if i == last:
+                curr[key] = True
+            else:
+                curr[key] = {}
+
+            curr = curr[key]
+
+    return f
+
+
 @cli.command()
 @click.option("--resolved/--plain", default=False)
 @click.option("--resolve-presets/--no-resolve-presets", default=False)
@@ -108,11 +128,16 @@ def init(path: Path):
 def config(resolved: bool, resolve_presets: bool, resolve_profile_refs: bool, fields: str | None, hashes: bool):
     c = _read_user_config()
 
+    if fields is not None:
+        fields = _build_inclusion_dict(fields)
+
     if hashes:
         c.resolve_presets()
+
         c.resolve_profile_refs()
-        mapping = {name: profile.hash() for name, profile in c.profiles.items()}
-        click.echo(json.dumps(mapping, indent=2))
+        mapping = {name: profile.make_profile_hashes() for name, profile in c.profiles.items()}
+
+        click.echo(TypeAdapter(ProfilesHashes).dump_json(mapping, indent=2, include=fields))
         return
 
     if resolved:
@@ -125,23 +150,6 @@ def config(resolved: bool, resolve_presets: bool, resolve_profile_refs: bool, fi
     if resolve_profile_refs:
         c.resolve_profile_refs()
 
-    if fields is not None:
-        fs = fields.split(",")
-        f = {}
-        for field in fs:
-            fs2 = field.split(".")
-            last = len(fs2) - 1
-
-            curr = f
-            for i, key in enumerate(fs2):
-                if i == last:
-                    curr[key] = True
-                else:
-                    curr[key] = {}
-
-                curr = curr[key]
-
-        fields = f
 
     click.echo(c.model_dump_json(indent=2, include=fields))
 

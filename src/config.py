@@ -62,6 +62,14 @@ class Proxy(BaseModel):
     custom: CustomProxy | None = None
 
 
+class ProfileHashes(BaseModel):
+    profile: str
+    container_image: str
+
+
+type ProfilesHashes = dict[NameStr, ProfileHashes]
+
+
 class Profile(BaseModel):
     flake: Path | None = None
     pkgs: list[NameStr] | None = None
@@ -103,6 +111,17 @@ class Profile(BaseModel):
 
     def hash(self) -> str:
         return hashlib.sha256(self.model_dump_json().encode(encoding="utf-8")).hexdigest()
+
+    def container_image_hash(self) -> str:
+        return hashlib.sha256(
+            self.model_dump_json(include=set(["pkgs", "use_base_pkgs", "agent"])).encode(encoding="utf-8")
+        ).hexdigest()
+
+    def make_profile_hashes(self) -> ProfileHashes:
+        return ProfileHashes(
+            profile=self.hash(),
+            container_image=self.container_image_hash(),
+        )
 
     def render_proxy_config(self) -> str:
         template = jinja_env.get_template("3proxy.cfg.j2")
@@ -296,7 +315,6 @@ class UserConfig(BaseModel):
         for v in refs:
             self.profiles[v] = self.profiles[_resolve(v)]
 
-
     def build(self, profile_name: str, state_dir: Path) -> None:
         self.resolve_presets()
 
@@ -308,6 +326,9 @@ class UserConfig(BaseModel):
         profile_dir = state_dir / profile_hash
 
         if profile_dir.is_dir():
-            raise Exception("Profile build exists already")
+            raise Exception("Profile directory already exists, not overwriting")
 
         profile_dir.mkdir(parents=True)
+
+        if profile.proxy.enable and profile.proxy.custom is None:
+            (profile_dir / "3proxy.cfg").write_text(profile.render_proxy_config())
