@@ -17,7 +17,23 @@ assert EXAMPLE_CONFIG_FILE.exists()
 
 
 def _read_user_config() -> UserConfig:
-    return UserConfig.model_validate_json(CONFIG_FILE.read_text())
+    if not CONFIG_FILE.exists():
+        raise click.ClickException(
+            f"Config file does not exist at the default path ({CONFIG_FILE}). "
+            "You must either create it with `slopbox init`, "
+            "or provide a path to existing config through the `--config` option, "
+            "e.g. `slopbox --config /path/to/config.json run`"
+        )
+
+    try:
+        c = UserConfig.model_validate_json(CONFIG_FILE.read_text())
+
+    except OSError as err:
+        raise click.ClickException(
+            f"OS error: errno={err.errno}, msg='{err.strerror}', filename='{err.filename}'"
+        ) from err
+
+    return c
 
 
 @click.group()
