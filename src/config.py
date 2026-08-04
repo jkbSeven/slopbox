@@ -22,11 +22,11 @@ def _validate_mount_str(v: str) -> str:
         raise ValueError("Mount string length must be greater than zero")
 
     parts = v.split(":")
-    if len(parts) < 2 or len(parts) > 3:
+    if len(parts) < 2 or len(parts) > 3 or any(map(lambda p: p == "", parts)):
         raise ValueError(
             "Invalid mount string structure, "
-            "there must be at least 2 parts and at most 3 parts (host:guest:options), "
-            f"got {len(parts)} parts: {parts}"
+            "there must be at least 2 parts and at most 3 parts (host:guest:options) "
+            f"with non-empty values, got {len(parts)} parts: {parts}"
         )
 
     if len(parts) == 2:
