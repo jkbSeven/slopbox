@@ -24,7 +24,9 @@ def _validate_mount_str(v: str) -> str:
     parts = v.split(":")
     if len(parts) < 2 or len(parts) > 3:
         raise ValueError(
-            f"Invalid mount string structure, there must be at least 2 parts and at most 3 parts (host:guest:options), got {parts} parts"
+            "Invalid mount string structure, "
+            "there must be at least 2 parts and at most 3 parts (host:guest:options), "
+            f"got {len(parts)} parts: {parts}"
         )
 
     if len(parts) == 2:
@@ -80,16 +82,17 @@ class Profile(BaseModel):
     proxy: Annotated[Proxy, Field(default_factory=Proxy)]
 
     @model_validator(mode="after")
-    def _validate_exclusive_flake_and_pkgs(self) -> "Profile":
+    def _validate_exclusive_flake_and_pkgs(self) -> Profile:
         if self.flake is not None and self.pkgs is not None:
             raise ValueError(
-                "Invalid profile config: 'flake' and 'pkgs' are mutually exclusive. If you use flakes, then all pkgs must be defined there"
+                "Invalid profile config: 'flake' and 'pkgs' are mutually exclusive. "
+                "If you use flakes, then all pkgs must be defined there"
             )
 
         return self
 
     @model_validator(mode="after")
-    def _inject_agent_mounts_and_presets(self) -> "Profile":
+    def _inject_agent_mounts_and_presets(self) -> Profile:
         if self.use_default_agent_mounts:
             self.mounts.append(self.agent.value)
 
@@ -148,13 +151,14 @@ class UserConfig(BaseModel):
 
         if value != SCHEMA_VERSION:
             raise ValueError(
-                f"Schema version of your config (version={value}) is not supported. Current slopbox release expects version {SCHEMA_VERSION}"
+                f"Schema version of your config (version={value}) is not supported. "
+                f"Current slopbox release expects version {SCHEMA_VERSION}"
             )
 
         return value
 
     @model_validator(mode="after")
-    def _add_slopbox_presets_to_presets_obj(self) -> "UserConfig":
+    def _add_slopbox_presets_to_presets_obj(self) -> UserConfig:
         # ordering of unions matters! user presets override the builtin ones
         self.presets.mounts = slopbox_presets.mounts | self.presets.mounts
         self.presets.proxy = slopbox_presets.proxy | self.presets.proxy
@@ -162,31 +166,31 @@ class UserConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _validate_mount_presets_exist(self) -> "UserConfig":
+    def _validate_mount_presets_exist(self) -> UserConfig:
         for name, profile in self.profiles.items():
             for mount in profile.mounts:
                 try:
                     TypeAdapter(MountConfigStr).validate_python(mount)
 
-                except ValueError:
+                except ValueError as err:
                     if self.presets.mounts is None:
                         raise ValueError(
                             f"Invalid mount '{mount}' in profile '{name}'. "
                             "Your config does not define any presets, "
                             "and the given mount is not a valid 'host:guest:options' mount"
-                        )
+                        ) from err
 
                     if mount not in self.presets.mounts:
                         raise ValueError(
                             f"Invalid mount '{mount}' in profile '{name}'. "
                             "Preset with such name does not exist in your config, "
                             "and the given mount is not a valid 'host:guest:options' mount"
-                        )
+                        ) from err
 
         return self
 
     @model_validator(mode="after")
-    def _validate_proxy_presets_exist(self) -> "UserConfig":
+    def _validate_proxy_presets_exist(self) -> UserConfig:
         for name, profile in self.profiles.items():
             if profile.proxy.enable is False or profile.proxy.allowlist is None:
                 return self
@@ -212,7 +216,7 @@ class UserConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _set_compose_override_in_profiles(self) -> "UserConfig":
+    def _set_compose_override_in_profiles(self) -> UserConfig:
         for _, profile in self.profiles.items():
             if profile.auto_read_compose_override is None:
                 profile.auto_read_compose_override = self.auto_read_compose_override

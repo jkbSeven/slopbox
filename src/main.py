@@ -38,7 +38,7 @@ def cli(config: str | None, state_dir: str | None):
 def init(path: Path):
     # in case user provided a directory
     if path.suffix == "":
-        raise RuntimeError(f"Provide a full path, it must end with '.json' file extension")
+        raise RuntimeError("Provide a full path, it must end with '.json' file extension")
 
     if path.exists():
         click.echo(f"A slopbox config already exists at {path}, not overwriting", err=True)
