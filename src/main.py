@@ -56,7 +56,7 @@ def _validate_state_dir_exists(create: bool = False) -> bool:
         return True
 
     raise RuntimeError(
-        f"Directory for storing slopbox profiles ({STATE_DIR}) does not exist"
+        f"Directory for storing slopbox profiles ({STATE_DIR}) does not exist",
     )
 
 
@@ -121,20 +121,19 @@ def build(profile: str):
     cfg = _read_user_config()
 
     if profile not in cfg.profiles:
-
         # extra handling to let user know they can set "default" = "<some_existing_profile_name>"
         if profile == "default":
             raise click.ClickException(
                 "Profile 'default' does not exist. "
                 f"You can create this profile in your config ({CONFIG_FILE}) following the structure from the docs, "
                 "or you can reference an existing profile, "
-                "i.e. set {\"profiles\": {\"default\": \"<name_of_existing_profile>\"}}. "
+                'i.e. set {"profiles": {"default": "<name_of_existing_profile>"}}. '
                 "Alternatively you can choose a profile through the `--profile/-p` option, "
                 "e.g. slopbox build --profile claude-python"
             )
 
         raise click.ClickException(
-            f"Profile '{profile}' does not exist in your config ({CONFIG_FILE})"
+            f"Profile '{profile}' does not exist in your config ({CONFIG_FILE})",
         )
 
 
