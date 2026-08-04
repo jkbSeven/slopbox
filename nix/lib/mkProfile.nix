@@ -9,6 +9,7 @@ let
   pkgs = (if useBasePkgs then lib.basePkgs meta.pkgs else [ ]) ++ runtimePkgs ++ agentPkg;
 in
 {
+  inherit pkgs;
   container = { name, workdir }: meta.pkgs.dockerTools.buildLayeredImage {
     inherit name;
     contents = pkgs;
