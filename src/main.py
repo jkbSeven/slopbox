@@ -103,8 +103,9 @@ def init(path: Path):
 @click.option("--resolved/--plain", default=False)
 @click.option("--resolve-presets/--no-resolve-presets", default=False)
 @click.option("--resolve-profile-refs/--no-resolve-profile-refs", default=False)
+@click.option("--fields", "-f")
 @click.option("--hashes/--no-hashes", default=False)
-def config(resolved: bool, resolve_presets: bool, resolve_profile_refs: bool, hashes: bool):
+def config(resolved: bool, resolve_presets: bool, resolve_profile_refs: bool, fields: str | None, hashes: bool):
     c = _read_user_config()
 
     if hashes:
@@ -124,7 +125,25 @@ def config(resolved: bool, resolve_presets: bool, resolve_profile_refs: bool, ha
     if resolve_profile_refs:
         c.resolve_profile_refs()
 
-    click.echo(c.model_dump_json(indent=2))
+    if fields is not None:
+        fs = fields.split(",")
+        f = {}
+        for field in fs:
+            fs2 = field.split(".")
+            last = len(fs2) - 1
+
+            curr = f
+            for i, key in enumerate(fs2):
+                if i == last:
+                    curr[key] = True
+                else:
+                    curr[key] = {}
+
+                curr = curr[key]
+
+        fields = f
+
+    click.echo(c.model_dump_json(indent=2, include=fields))
 
 
 @cli.command()
