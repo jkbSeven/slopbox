@@ -1,46 +1,50 @@
 # Slopbox
 A secure-ish environment for running AI agents.
 
-The goal is to give as little access as possible.
-Agent container in docker compose has a read-only file system (except for custom volume mounts) and it can access the internet only through a restrictive proxy.
+The goal of this project is to allow users to effortlessly setup
+an isolated runtime (container or virtual machine) for the AI agent.
 
-DISCLAIMER: This is not an out-of-the-box solution, you need to make adjustments for your setup.
+What can you expect?
+* Principle of least privilege, slopbox allows you to:
+   * include only the binaries that are neccessary for the agent to operate in your repo
+   * restrict agent's network access through a customizable proxy
+   * grant access to a subset of directories (no need to worry about leaking secrets or ssh keys)
+* Batteries included but removable
+   * slopbox comes in with presets for mounts and proxy rules for opencode and claude-code
+   * configuration has sane defaults, which you can easily overwrite if needed
+* Easy to use CLI
+
+DISCLAIMER: this project is on a very early stage of development.
+A lot of things will change and there will be a bunch of new features!
 
 ## Requirements
 - Nix
 - Docker
-   - scripts assume rootless mode
+   - we assume rootless mode
    - guide for NixOS: https://wiki.nixos.org/wiki/Docker#Rootless_Docker
 - Docker Compose
 
 ## Usage
+1. Create a baseline config with `slopbox init`
+   * this command will create a directory (default: `~/.config/slopbox`) with a baseline `config.json` that you can take inspiration from
+   * you can point slopbox to a custom config file through an option: `slopbox --config /path/to/config.json ...` or `SLOPBOX_CONFIG_FILE` env var
+2. Inspect the configuration with `slopbox config`
+   * you can see the final configuration, with resolved presets and profile references, by passing the `--resolved` option
+3. Adjust the baseline `config.json` file according to your needs
+4. Build a profile with `slopbox build`
+   * this command uses the `default` profile by default, you can pass the `--profile <profile name>` option to change that
+5. Run the environment with `slopbox run` (currently only containers are supported, VMs will be available in near future)
+   * this command uses the `default` profile by default, you can pass the `--profile <profile name>` option to change that
 
-### Baseline claude-code setup
-1. Clone the repo to a directory where you store projects and `cd` into it
-2. Run `nix build .#slopbox && docker load < result`
-3. Run `nix build .#slopbox-proxy && docker load < result`
-4. Add an alias `alias slop="/path/to/repo/slop.sh"`
-5. Run `slop -p claude` from the directory that you want to expose to claude.
+You can use `-v` or `-vv` for more verbose logs, e.g. `slopbox -vv run`
 
-### Customize
-This flake exposes a `lib` output that contains the `lib.genSlopboxImage` helper function for building a docker image for the agent environment.
-The function takes the following arguments:
-- `imageName` (default: `slopbox`)
-- `imageTag` (default: `latest`)
-- `pkgs` (nixpkgs)
-- `agentPkg` (e.g. opencode)
-- `additionalPkgs` (optional)
+## Docs
+No documentation is available at this point. The schema in `docs/v1.jsonc` lists most of the available options.
 
-Build your custom image:
-1. Add the flake from this repo to your project's flake inputs
-2. Define a Nix package (`outputs.packages`) that will build the custom image through `lib.genSlopboxImage`
-3. Build the image and load it to docker `nix build .#<name-of-the-defined-package> && docker load < result`
-4. Clone this repo to a directory where you store projects and `cd` into it
-5. Run `nix build .#slopbox-proxy && docker load < result` (or define your own proxy setup)
-6. Run `docker compose up --wait proxy`
-7. Run `docker compose run --rm -v <volumes that you need and bind mount for project dir> agent`
-
-## What's planned
-- make slopbox easier to use
-- investigate and fix issues with the current setup for [gVisor](https://github.com/google/gvisor) container runtime
-- add setup for running agents in `microvm` so that slopbox is more secure (configured through the flake.nix)
+## What's next
+1. Support for running agents in virtual machines (microvm)
+2. Support for passing a profile from a custom nix flake, so that users can easliy use their own overlays, etc.
+3. Support for per-project slopbox extensions that will enable users to extend exisiting profiles with project-related dependencies, mounts, and proxy routes
+4. Improve validation and error handling
+5. Improve logging
+6. Improve reproducibility
