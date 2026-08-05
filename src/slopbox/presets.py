@@ -1,4 +1,4 @@
-from const import Agent
+from slopbox.const import Agent
 
 __all__ = ["mounts", "proxy"]
 
