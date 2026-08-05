@@ -29,6 +29,7 @@ A lot of things will change and there will be a bunch of new features!
    * this command will create a directory (default: `~/.config/slopbox`) with a baseline `config.json`
    * you can point slopbox to a custom config file through an option: `slopbox --config /path/to/config.json ...` or `SLOPBOX_CONFIG_FILE` env var
 2. Adjust the baseline `config.json` file according to your needs
+   * the `pkgs` field is a list of packages (binaries or scripts) that will be included in the runtime environment, you can search for packages on https://search.nixos.org/packages?channel=unstable
 3. Inspect the configuration with `slopbox config`
    * you can see the final configuration, with resolved presets and profile references, by passing the `--resolved` option
 4. Build a profile with `slopbox build`
