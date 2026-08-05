@@ -6,15 +6,14 @@
   useBasePkgs
 }:
 let
-  pkgs = (if useBasePkgs then lib.basePkgs meta.pkgs else [ ]) ++ runtimePkgs ++ agentPkg;
+  pkgs = (if useBasePkgs then lib.basePkgs meta.pkgs else [ ]) ++ runtimePkgs ++ [ agentPkg ];
 in
 {
   inherit pkgs;
-  container = { name, workdir }: meta.pkgs.dockerTools.buildLayeredImage {
-    inherit name;
+  container = { name, tag }: meta.pkgs.dockerTools.buildLayeredImage {
+    inherit name tag;
     contents = pkgs;
     config = {
-      WorkingDir = workdir;
       Env = [
         "SSL_CERT_FILE=${meta.pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       ];
@@ -22,4 +21,13 @@ in
     };
   };
   vm = {};
+  proxy = { name, tag }: meta.pkgs.dockerTools.buildLayeredImage {
+    inherit name tag;
+    contents = [ meta.pkgs._3proxy ];
+    config = {
+      Env = [
+        "SSL_CERT_FILE=${meta.pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+      ];
+    };
+  };
 }
