@@ -21,6 +21,7 @@ jinja_env = Environment(loader=FileSystemLoader(str(TEMPLATES_PATH)))
 
 logger = logging.getLogger()
 
+
 def _validate_mount_str(v: str) -> str:
     if len(v) < 1:
         raise ValueError("Mount string length must be greater than zero")
@@ -223,7 +224,6 @@ class UserConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_referenced_profiles_exist(self) -> UserConfig:
         for name, profile in self.profiles.items():
-
             # regular Profile obj
             if isinstance(profile, Profile):
                 continue
@@ -239,7 +239,6 @@ class UserConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_mount_presets_exist(self) -> UserConfig:
         for name, profile in self.profiles.items():
-
             # in case of profile reference
             if not isinstance(profile, Profile):
                 continue
@@ -268,7 +267,6 @@ class UserConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_proxy_presets_exist(self) -> UserConfig:
         for name, profile in self.profiles.items():
-
             # in case of profile reference
             if not isinstance(profile, Profile):
                 continue
@@ -299,7 +297,6 @@ class UserConfig(BaseModel):
     @model_validator(mode="after")
     def _set_compose_override_in_profiles(self) -> UserConfig:
         for _, profile in self.profiles.items():
-
             # in case of profile reference
             if not isinstance(profile, Profile):
                 continue
@@ -311,7 +308,6 @@ class UserConfig(BaseModel):
 
     def resolve_presets(self) -> None:
         for _, profile in self.profiles.items():
-
             # in case of profile reference
             if not isinstance(profile, Profile):
                 continue
@@ -376,7 +372,6 @@ class UserConfig(BaseModel):
         flake_path.write_text(profile.render_flake(profile_name))
 
         for image in ("slopbox", "slopbox-proxy"):
-
             logger.info(f"building the '{image}' image from flake ({flake_path})")
             subprocess.run(
                 ["nix", "--extra-experimental-features", "nix-command flakes", "build", f"{flake_path}#{image}"],
