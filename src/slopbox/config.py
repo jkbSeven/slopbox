@@ -8,8 +8,8 @@ import yaml
 from jinja2 import Environment, FileSystemLoader
 from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, field_validator, model_validator
 
-import presets as slopbox_presets
-from const import UNFREE_AGENTS, Agent, SlopboxRuntime
+import slopbox.presets
+from slopbox.const import UNFREE_AGENTS, Agent, SlopboxRuntime
 
 SCHEMA_VERSION = 1
 TEMPLATES_PATH = Path(__file__).parent / "templates"
@@ -216,8 +216,8 @@ class UserConfig(BaseModel):
     @model_validator(mode="after")
     def _add_slopbox_presets_to_presets_obj(self) -> UserConfig:
         # ordering of unions matters! user presets override the builtin ones
-        self.presets.mounts = slopbox_presets.mounts | self.presets.mounts
-        self.presets.proxy = slopbox_presets.proxy | self.presets.proxy
+        self.presets.mounts = slopbox.presets.mounts | self.presets.mounts
+        self.presets.proxy = slopbox.presets.proxy | self.presets.proxy
 
         return self
 

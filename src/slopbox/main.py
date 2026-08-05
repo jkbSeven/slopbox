@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 from pydantic import TypeAdapter
 
-from config import SCHEMA_VERSION, ProfilesHashes, UserConfig
+from slopbox.config import SCHEMA_VERSION, ProfilesHashes, UserConfig
 
 VERSION = "0.1.0"
 
@@ -201,5 +201,9 @@ def health():
     click.echo(f"State dir: {STATE_DIR}")
 
 
-if __name__ == "__main__":
+def main():
     cli()
+
+
+if __name__ == "__main__":
+    main()
