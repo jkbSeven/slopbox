@@ -1,8 +1,3 @@
-#######
-# NIX #
-#######
-/result
-
 ##########
 # PYTHON #
 ##########
@@ -226,3 +221,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+#######
+# NIX #
+#######
+/result
+!/nix/lib
