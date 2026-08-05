@@ -184,10 +184,13 @@ def build(profile: str):
 
 @cli.command()
 @click.option("--profile", "-p", default="default")
-def run(profile: str):
+@click.option("--linger/--no-linger", default=False)
+def run(profile: str, linger: bool):
     _validate_state_dir_exists()
     cfg = _read_user_config()
     _assert_profile_exists(cfg, profile)
+
+    cfg.run(profile_name=profile, state_dir=STATE_DIR, linger=linger)
 
 
 @cli.command()

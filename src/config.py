@@ -1,4 +1,6 @@
 import hashlib
+import logging
+import subprocess
 from pathlib import Path
 from typing import Annotated, Any, cast
 
@@ -17,6 +19,7 @@ type NameStr = Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)]
 
 jinja_env = Environment(loader=FileSystemLoader(str(TEMPLATES_PATH)))
 
+logger = logging.getLogger()
 
 def _validate_mount_str(v: str) -> str:
     if len(v) < 1:
@@ -366,6 +369,88 @@ class UserConfig(BaseModel):
         if profile.proxy.enable:
             (profile_dir / "3proxy.cfg").write_text(profile.render_proxy_config())
 
-        (profile_dir / "compose.yaml").write_text(profile.render_compose_config())
+        compose_path = profile_dir / "compose.yaml"
+        compose_path.write_text(profile.render_compose_config())
 
-        (profile_dir / "flake.nix").write_text(profile.render_flake(profile_name))
+        flake_path = profile_dir / "flake.nix"
+        flake_path.write_text(profile.render_flake(profile_name))
+
+        for image in ("slopbox", "slopbox-proxy"):
+
+            logger.info(f"building the '{image}' image from flake ({flake_path})")
+            subprocess.run(
+                ["nix", "--extra-experimental-features", "nix-command flakes", "build", f"{flake_path}#{image}"],
+                check=True,
+                capture_output=True,
+            )
+
+            logger.info(f"loading the '{image}' image to docker")
+            subprocess.run(
+                ["docker", "load", "-i", "result"],
+                check=True,
+                capture_output=True,
+            )
+
+            logger.debug(f"unlinking the nix build result (exists: {Path('result').exists()})")
+            Path("result").unlink()
+
+    def run(self, profile_name: str, state_dir: Path, linger: bool) -> None:
+        self.resolve_presets()
+
+        # casting to Profile type after profile refs have been resolved
+        self.resolve_profile_refs()
+        profile = cast(Profile, self.profiles[profile_name])
+
+        profile_hash = profile.hash()
+        profile_dir = state_dir / profile_hash
+
+        if not profile_dir.exists():
+            raise Exception(
+                f"Profile '{profile_name}' has not been built yet (missing dir: {profile_dir}). "
+                f"You have to run `slopbox build --profile {profile}` first. "
+                f"If you use a custom state dir, pass the `--state-dir <path>` option "
+                "or set the SLOPBOX_STATE_DIR env var"
+            )
+
+        compose_path = profile_dir / "compose.yaml"
+        if not compose_path.exists():
+            raise Exception(
+                f"Docker compose.yaml file does not exist in the '{profile_name}' profile directory. "
+                f"Remove the {profile_dir} directory and rebuild with `slopbox build --profile {profile_name}"
+            )
+
+        docker_compose_cmd = ["docker", "compose", "-f", str(compose_path)]
+        if profile.auto_read_compose_override:
+            override_path = profile.compose_override_path or (profile_dir / "compose.override.yaml")
+
+            if override_path.exists():
+                docker_compose_cmd.extend(["-f", str(override_path)])
+            else:
+                logger.warning(
+                    "Config option 'auto_read_compose_override' is set to true, "
+                    f"however, the compose override file ({override_path}) does not exist. "
+                    f"To disable this warning set 'auto_read_compose_override' to 'false' for profile '{profile_name}'"
+                )
+
+        logger.info("spinning up proxy container")
+        subprocess.run(
+            docker_compose_cmd + ["up", "--detach", "proxy"],
+            check=True,
+            capture_output=True,
+        )
+
+        logger.info("spinning up agent container")
+        subprocess.run(
+            docker_compose_cmd + ["run", "agent", "bash"],  # FIXME: assumes bash
+            check=True,
+        )
+
+        if not linger:
+            logger.info("stopping containers")
+            subprocess.run(
+                # need to remove orphans as docker has issues with long container names
+                # and we're unable to stop them manually with `docker stop ...`
+                docker_compose_cmd + ["down", "--remove-orphans"],
+                check=True,
+                capture_output=True,
+            )
