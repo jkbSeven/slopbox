@@ -1,0 +1,13 @@
+nserver 1.1.1.1
+nscache 65536
+
+log
+logformat "G%Y-%m-%d %H:%M:%S %N:%p %E %U %C:%c %R:%r (%n) %O"
+
+{% for entry in allowlist -%}
+allow * * {{ entry }} 443
+{% endfor -%}
+
+deny *
+
+proxy -p3128
