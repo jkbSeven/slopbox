@@ -1,40 +1,28 @@
 {
-    "version": 1,
-    "auto_read_compose_override": true,
+  "version": 1,
+  "auto_read_compose_override": true,
 
-    "profiles": {
-        "claude-python": {
-            "pkgs": [
-                "python314",
-                "uv",
-                "gnumake"
-            ],
-            "use_base_pkgs": true,
-            "agent": "claude-code",
-            "mounts": [
-                "workdir",
-                "git-ro",
-                "secrets"
-            ],
-            "proxy": {
-                "enable": true,
-                "allowlist": [
-                    "python3",
-                    "my.website.com"
-                ]
-            }
-        }
-    },
-
-    "presets": {
-        "mounts": {
-            "secrets": "/local/path/to/secrets:/workspace/secrets:ro"
-        },
-        "proxy": {
-            "work-git": [
-                "git.example.com",
-                "git2.example.com"
-            ]
-        }
+  "profiles": {
+    "default": "claude-python",
+    "claude-python": {
+      "pkgs": [
+        "python314",
+        "uv",
+        "gnumake"
+      ],
+      "use_base_pkgs": true,
+      "agent": "claude-code",
+      "mounts": [
+        "workdir",
+        "git-ro"
+      ],
+      "proxy": {
+        "enable": true,
+        "allowlist": [
+          "python3",
+          "github"
+        ]
+      }
     }
+  }
 }
