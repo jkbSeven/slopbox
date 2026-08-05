@@ -2,19 +2,20 @@ import hashlib
 from pathlib import Path
 from typing import Annotated, Any, cast
 
+import yaml
 from jinja2 import Environment, FileSystemLoader
 from pydantic import AfterValidator, BaseModel, Field, TypeAdapter, field_validator, model_validator
 
 import presets as slopbox_presets
-from const import Agent, SlopboxRuntime
-
-GENERIC_NAME_PATTERN = "^[a-zA-Z0-9_][a-zA-Z0-9][a-zA-Z0-9_-]*$"
+from const import UNFREE_AGENTS, Agent, SlopboxRuntime
 
 SCHEMA_VERSION = 1
+TEMPLATES_PATH = Path(__file__).parent / "templates"
 
+GENERIC_NAME_PATTERN = "^[a-zA-Z0-9_][a-zA-Z0-9][a-zA-Z0-9_-]*$"
 type NameStr = Annotated[str, Field(min_length=1, pattern=GENERIC_NAME_PATTERN)]
 
-jinja_env = Environment(loader=FileSystemLoader(str(Path(__file__).parent / "templates")))
+jinja_env = Environment(loader=FileSystemLoader(str(TEMPLATES_PATH)))
 
 
 def _validate_mount_str(v: str) -> str:
@@ -124,8 +125,40 @@ class Profile(BaseModel):
         )
 
     def render_proxy_config(self) -> str:
+        # TODO: if custom then add redirect in the 3proxy cfg
+        # we need to have 3proxy regardless of user's custom proxy
         template = jinja_env.get_template("3proxy.cfg.j2")
         return template.render(allowlist=self.proxy.allowlist)
+
+    def render_compose_config(self) -> str:
+        data = yaml.safe_load((TEMPLATES_PATH / "compose.yaml").read_text())
+
+        if len(self.mounts) > 0:
+            data["services"]["agent"]["volumes"] = self.mounts
+
+        data["services"]["agent"]["working_dir"] = str(self.workdir)
+
+        data["services"]["agent"]["image"] = f"slopbox:{self.container_image_hash()}"
+        data["services"]["proxy"]["image"] = f"slopbox-proxy:{self.hash()}"
+
+        return yaml.safe_dump(data, sort_keys=False)
+
+    def render_flake(self, profile_name: str) -> str:
+        if self.flake is not None:
+            raise NotImplementedError()
+
+        template = jinja_env.get_template("flake.nix.j2")
+
+        return template.render(
+            profile_name=profile_name,
+            pkgs=" ".join(self.pkgs),
+            agent_pkg=self.agent.value,
+            unfree_agent=self.agent in UNFREE_AGENTS,
+            use_base_pkgs="true" if self.use_base_pkgs else "false",
+            workdir=self.workdir,
+            container_tag=self.container_image_hash(),
+            proxy_tag=self.hash(),
+        )
 
 
 type ProfilesDict = dict[NameStr, Profile | NameStr]
@@ -330,5 +363,9 @@ class UserConfig(BaseModel):
 
         profile_dir.mkdir(parents=True)
 
-        if profile.proxy.enable and profile.proxy.custom is None:
+        if profile.proxy.enable:
             (profile_dir / "3proxy.cfg").write_text(profile.render_proxy_config())
+
+        (profile_dir / "compose.yaml").write_text(profile.render_compose_config())
+
+        (profile_dir / "flake.nix").write_text(profile.render_flake(profile_name))

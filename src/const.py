@@ -10,3 +10,6 @@ class Agent(Enum):
 class SlopboxRuntime(Enum):
     CONTAINER = "container"
     VM = "vm"
+
+
+UNFREE_AGENTS = (Agent.CLAUDE, Agent.CODEX)

@@ -1,4 +1,3 @@
-import json
 import logging
 from pathlib import Path
 
@@ -150,8 +149,27 @@ def config(resolved: bool, resolve_presets: bool, resolve_profile_refs: bool, fi
     if resolve_profile_refs:
         c.resolve_profile_refs()
 
-
     click.echo(c.model_dump_json(indent=2, include=fields))
+
+
+def _assert_profile_exists(cfg: UserConfig, profile: str) -> None:
+    if profile in cfg.profiles:
+        return
+
+    # extra handling to let user know they can set "default" = "<some_existing_profile_name>"
+    if profile == "default":
+        raise click.ClickException(
+            "Slopbox uses the 'default' profile by default, however, this profile does not exist in your config. "
+            f"You can create this profile (in {CONFIG_FILE}) following the structure from the docs, "
+            "or you can reference an existing profile by name, "
+            'i.e. set {"profiles": {"default": "<name_of_existing_profile>"}}. '
+            "Alternatively you can choose a profile through the `--profile/-p` option, "
+            "e.g. slopbox build --profile claude-python"
+        )
+
+    raise click.ClickException(
+        f"Profile '{profile}' does not exist in your config ({CONFIG_FILE})",
+    )
 
 
 @cli.command()
@@ -159,29 +177,17 @@ def config(resolved: bool, resolve_presets: bool, resolve_profile_refs: bool, fi
 def build(profile: str):
     _validate_state_dir_exists(create=True)
     cfg = _read_user_config()
+    _assert_profile_exists(cfg, profile)
 
-    if profile not in cfg.profiles:
-        # extra handling to let user know they can set "default" = "<some_existing_profile_name>"
-        if profile == "default":
-            raise click.ClickException(
-                "Slopbox uses the 'default' profile by default, however, this profile does not exist in your config. "
-                f"You can create this profile (in {CONFIG_FILE}) following the structure from the docs, "
-                "or you can reference an existing profile by name, "
-                'i.e. set {"profiles": {"default": "<name_of_existing_profile>"}}. '
-                "Alternatively you can choose a profile through the `--profile/-p` option, "
-                "e.g. slopbox build --profile claude-python"
-            )
-
-        raise click.ClickException(
-            f"Profile '{profile}' does not exist in your config ({CONFIG_FILE})",
-        )
-
-    # cfg.build(state_dir=STATE_DIR)
+    cfg.build(profile_name=profile, state_dir=STATE_DIR)
 
 
 @cli.command()
-def run():
-    pass
+@click.option("--profile", "-p", default="default")
+def run(profile: str):
+    _validate_state_dir_exists()
+    cfg = _read_user_config()
+    _assert_profile_exists(cfg, profile)
 
 
 @cli.command()

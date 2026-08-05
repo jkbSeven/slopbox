@@ -1,0 +1,61 @@
+{
+  description = "Auto-generated flake for profile {{ profile_name }}";
+
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    slopbox.url = "github:jkbSeven/slopbox";
+  };
+
+  outputs =
+    {
+      self,
+      nixpkgs,
+      slopbox,
+      ...
+    }:
+    let
+      inherit (nixpkgs) lib;
+      forAllSystems = lib.genAttrs lib.systems.flakeExposed;
+    in
+    {
+      slopbox.profile = slopbox.lib.mkProfile rec {
+        meta = {
+          {% if unfree_agent -%}
+          pkgs = import nixpkgs {
+            system = "x86_64-linux";
+            config.allowUnfreePredicate =
+              pkg:
+              builtins.elem (lib.getName pkg) [
+                "{{ agent_pkg }}"
+              ];
+          };
+          {% else -%}
+          pkgs = import nixpkgs { system = "x86_64-linux"; };
+          {% endif -%}
+          inherit lib;
+        };
+        runtimePkgs = with meta.pkgs; [ {{ pkgs }} ];
+        agentPkg = meta.pkgs.{{ agent_pkg }};
+        useBasePkgs = {{ use_base_pkgs }};
+      };
+
+      packages = forAllSystems (system: {
+        slopbox = self.slopbox.profile.container {
+          name = "slopbox";
+          tag = "{{ container_tag }}";
+        };
+        slopbox-proxy = self.slopbox.profile.proxy {
+          name = "slopbox-proxy";
+          tag = "{{ proxy_tag }}";
+        };
+      });
+
+      formatter = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        pkgs.nixfmt
+      );
+    };
+}
