@@ -24,7 +24,7 @@ build-backend = "uv_build"
 slopbox = "slopbox.main:main"
 
 [tool.ruff]
-line-length = 120
+line-length = 88
 indent-width = 4
 target-version = "py314"
 

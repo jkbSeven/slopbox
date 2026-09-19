@@ -1,4 +1,4 @@
-CODEDIRS := src
+CODEDIRS := "src"
 
 fmt:
 	uv run ruff check --select I --fix {{CODEDIRS}}
