@@ -12,7 +12,6 @@ let
       pkgs.man
       pkgs.less
     ];
-    mkProfile = callLib ./mkProfile.nix;
   };
 in
 lib

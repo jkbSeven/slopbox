@@ -24,7 +24,7 @@
             packages = [
               pkgs.python314
               pkgs.uv
-              pkgs.gnumake
+              pkgs.just
             ];
 
             # running `ruff` downloaded through uv will still fail on NixOS though
