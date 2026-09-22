@@ -17,10 +17,6 @@ def is_tool_available(cmd: list[str]) -> bool:
     return False
 
 
-def is_nix_available() -> bool:
-    return is_tool_available(["nix", "--version"])
-
-
 def is_docker_available() -> bool:
     return is_tool_available(["docker", "--version"])
 
