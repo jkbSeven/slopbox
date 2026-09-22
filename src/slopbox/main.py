@@ -2,6 +2,7 @@ from pathlib import Path
 
 import click
 
+from slopbox import const
 from slopbox.checks import (
     can_run,
     is_docker_available,
@@ -101,14 +102,14 @@ def init():
 
     if not lock_file.exists():
         try:
-            nixpkgs_tree = Nix.fetch_tree("github:nixos/nixpkgs/nixos-unstable")
+            nixpkgs_tree = Nix.fetch_tree(const.NIXPKGS_FETCH_URL)
         except NixError as err:
             raise click.ClickException(
                 f"failed to fetch and pin nixpkgs revision: {err}"
             ) from err
 
         try:
-            slopbox_tree = Nix.fetch_tree("github:jkbSeven/slopbox")
+            slopbox_tree = Nix.fetch_tree(const.SLOPBOX_FETCH_URL)
         except NixError as err:
             raise click.ClickException(
                 f"failed to fetch and pin slopbox revision: {err}"

@@ -21,6 +21,7 @@ class NixFetchTreeResult(pydantic.BaseModel):
     }
     """
 
+    url: str | None = None  # this makes updating trivial, set manually
     last_modified: Annotated[int, pydantic.Field(alias="lastModified")]
     last_modified_date: Annotated[str, pydantic.Field(alias="lastModifiedDate")]
     nar_hash: Annotated[str, pydantic.Field(alias="narHash")]
@@ -89,6 +90,9 @@ class Nix:
                 f"failed to fetch the '{url}' resource with Nix fetchTree: {err}"
             )
 
-        return NixFetchTreeResult.model_validate_json(
+        r = NixFetchTreeResult.model_validate_json(
             result.stdout.decode(encoding="utf-8")
         )
+        r.url = url
+
+        return r
