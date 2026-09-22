@@ -20,10 +20,11 @@ class NixFetchTreeResult(pydantic.BaseModel):
       "shortRev": "6774f7b"
     }
     """
+
     last_modified: Annotated[int, pydantic.Field(alias="lastModified")]
     last_modified_date: Annotated[str, pydantic.Field(alias="lastModifiedDate")]
     nar_hash: Annotated[str, pydantic.Field(alias="narHash")]
-    rev: str 
+    rev: str
     shortRev: Annotated[str, pydantic.Field(alias="shortRev")]
 
 
@@ -40,7 +41,7 @@ class Nix:
         return [
             "nix",
             "--extra-experimental-features",
-            " ".join(cls.experimental_features)
+            " ".join(cls.experimental_features),
         ] + cmd
 
     @classmethod
@@ -69,19 +70,25 @@ class Nix:
 
     @classmethod
     def fetch_tree(cls, url: str) -> NixFetchTreeResult:
-        cmd = cls.build_cmd([
-            "eval",
-            "--json",
-            "--impure",
-            "--expr",
-            f"builtins.removeAttrs (builtins.fetchTree {url}) [ \"outPath\" ]"
-        ])
+        cmd = cls.build_cmd(
+            [
+                "eval",
+                "--json",
+                "--impure",
+                "--expr",
+                f'builtins.removeAttrs (builtins.fetchTree {url}) [ "outPath" ]',
+            ]
+        )
 
         result = subprocess.run(cmd, capture_output=True)
 
         if result.returncode != 0:
-            err = result.stderr.decode(encoding='utf-8')
+            err = result.stderr.decode(encoding="utf-8")
             logging.debug(f"Nix command '{cmd}' failed, stderr: {err}")
-            raise NixError(f"failed to fetch the '{url}' resource with Nix fetchTree: {err}")
+            raise NixError(
+                f"failed to fetch the '{url}' resource with Nix fetchTree: {err}"
+            )
 
-        return NixFetchTreeResult.model_validate_json(result.stdout.decode(encoding="utf-8"))
+        return NixFetchTreeResult.model_validate_json(
+            result.stdout.decode(encoding="utf-8")
+        )

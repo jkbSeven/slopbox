@@ -26,15 +26,18 @@ class fmt:
         return click.style(msg, fg="green")
 
 
-
 def _init_config_dir():
     if not HOME_DIR.exists():
-        raise click.ClickException(f"user's home directory ({HOME_DIR}) does not exist, cannot proceed")
+        raise click.ClickException(
+            f"user's home directory ({HOME_DIR}) does not exist, cannot proceed"
+        )
 
     try:
         CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     except (OSError, FileNotFoundError) as err:
-        raise click.ClickException(f"unable to create or read the config directory ({CONFIG_DIR}): {err}")
+        raise click.ClickException(
+            f"unable to create or read the config directory ({CONFIG_DIR}): {err}"
+        ) from err
 
 
 def _err_if_unhealthy() -> None:
@@ -57,7 +60,7 @@ def health():
 
     try:
         nix_version = Nix.version()
-        click.echo(f"nix: {fmt.green("OK")} ({nix_version})")
+        click.echo(f"nix: {fmt.green('OK')} ({nix_version})")
     except NixError:
         click.echo("nix: " + fmt.red("MISSING"))
 
@@ -87,7 +90,9 @@ def build():
 def init():
     """initialize slopbox configuration (user-wide)"""
     if not Nix.is_available():
-        raise click.ClickException("You have to install Nix prior to using slopbox, more info: https://nixos.org/")
+        raise click.ClickException(
+            "You have to install Nix prior to using slopbox, more info: https://nixos.org/"
+        )
 
     _init_config_dir()
 
@@ -98,12 +103,16 @@ def init():
         try:
             nixpkgs_tree = Nix.fetch_tree("github:nixos/nixpkgs/nixos-unstable")
         except NixError as err:
-            raise click.ClickException(f"failed to fetch and pin nixpkgs revision: {err}") from err
+            raise click.ClickException(
+                f"failed to fetch and pin nixpkgs revision: {err}"
+            ) from err
 
         try:
             slopbox_tree = Nix.fetch_tree("github:jkbSeven/slopbox")
         except NixError as err:
-            raise click.ClickException(f"failed to fetch and pin slopbox revision: {err}") from err
+            raise click.ClickException(
+                f"failed to fetch and pin slopbox revision: {err}"
+            ) from err
 
         lock = SlopboxLock(nixpkgs=nixpkgs_tree, slopbox=slopbox_tree)
 
