@@ -7,7 +7,8 @@ from slopbox.checks import (
     is_docker_available,
     is_rootless_docker,
 )
-from slopbox.nix import Nix, NixError
+from slopbox.config import EXAMPLE_SLOPBOX_CONFIG
+from slopbox.nix import Nix, NixError, SlopboxLock
 
 VERSION = "0.1.0"
 
@@ -23,6 +24,7 @@ class fmt:
     @staticmethod
     def green(msg: str):
         return click.style(msg, fg="green")
+
 
 
 def _init_config_dir():
@@ -89,15 +91,33 @@ def init():
 
     _init_config_dir()
 
-    try:
-        nixpkgs_tree = Nix.fetch_tree("github:nixos/nixpkgs/nixos-unstable")
-    except NixError as err:
-        raise click.ClickException(f"failed to fetch and pin nixpkgs revision: {err}") from err
+    lock: SlopboxLock
+    lock_file = CONFIG_DIR / "slopbox.lock"
 
-    try:
-        slopbox_tree = Nix.fetch_tree("github:jkbSeven/slopbox")
-    except NixError as err:
-        raise click.ClickException(f"failed to fetch and pin slopbox revision: {err}") from err
+    if not lock_file.exists():
+        try:
+            nixpkgs_tree = Nix.fetch_tree("github:nixos/nixpkgs/nixos-unstable")
+        except NixError as err:
+            raise click.ClickException(f"failed to fetch and pin nixpkgs revision: {err}") from err
+
+        try:
+            slopbox_tree = Nix.fetch_tree("github:jkbSeven/slopbox")
+        except NixError as err:
+            raise click.ClickException(f"failed to fetch and pin slopbox revision: {err}") from err
+
+        lock = SlopboxLock(nixpkgs=nixpkgs_tree, slopbox=slopbox_tree)
+
+        lock_file.write_text(
+            lock.model_dump_json(indent=2, by_alias=True),
+            encoding="utf-8",
+        )
+
+    else:
+        lock = SlopboxLock.model_validate_json(lock_file.read_text(encoding="utf-8"))
+
+    slopbox_file = CONFIG_DIR / "slopbox.nix"
+    if not slopbox_file.exists():
+        slopbox_file.write_text(EXAMPLE_SLOPBOX_CONFIG, encoding="utf-8")
 
 
 def main():

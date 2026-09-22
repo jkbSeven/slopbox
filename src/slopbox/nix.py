@@ -27,6 +27,11 @@ class NixFetchTreeResult(pydantic.BaseModel):
     shortRev: Annotated[str, pydantic.Field(alias="shortRev")]
 
 
+class SlopboxLock(pydantic.BaseModel):
+    nixpkgs: NixFetchTreeResult
+    slopbox: NixFetchTreeResult
+
+
 class Nix:
     experimental_features = ["fetch-tree", "flakes", "nix-command"]
 
