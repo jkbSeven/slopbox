@@ -1,5 +1,7 @@
 import subprocess
 
+from slopbox.nix import Nix
+
 
 def is_tool_available(cmd: list[str]) -> bool:
     try:
@@ -15,10 +17,6 @@ def is_tool_available(cmd: list[str]) -> bool:
         pass
 
     return False
-
-
-def is_nix_available() -> bool:
-    return is_tool_available(["nix", "--version"])
 
 
 def is_docker_available() -> bool:
@@ -48,4 +46,4 @@ def is_rootless_docker() -> int:
 
 
 def can_run() -> bool:
-    return is_nix_available() and is_docker_available() and is_rootless_docker() == 1
+    return Nix.is_available() and is_docker_available() and is_rootless_docker() == 1
