@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 
-from slopbox import const
+from slopbox import const, runtime_config
 from slopbox.checks import (
     can_run,
     is_docker_available,
@@ -122,12 +122,42 @@ def init():
             encoding="utf-8",
         )
 
-    else:
-        lock = SlopboxLock.model_validate_json(lock_file.read_text(encoding="utf-8"))
-
     slopbox_file = CONFIG_DIR / "slopbox.nix"
     if not slopbox_file.exists():
         slopbox_file.write_text(EXAMPLE_SLOPBOX_CONFIG, encoding="utf-8")
+
+
+@cli.group()
+def config():
+    """manage runtime configuration (slopbox CLI)"""
+
+
+@config.command("show")
+def config_show():
+    """show resolved runtime configuration"""
+    runtime_config_path = CONFIG_DIR / "config.toml"
+
+    c: runtime_config.Config
+    if runtime_config_path.exists():
+        try:
+            c = runtime_config.Config.load(runtime_config_path)
+        except runtime_config.RuntimeConfigError as err:
+            raise click.ClickException(
+                f"error while parsing runtime config: {err}"
+            ) from err
+    else:
+        c = runtime_config.Config()
+
+    click.echo(c.model_dump_json(indent=2))
+
+
+@config.command("edit")
+def config_edit():
+    """edit runtime configuration in your text editor ($EDITOR)"""
+    runtime_config_path = CONFIG_DIR / "config.toml"
+    runtime_config_path.touch(exist_ok=True)
+
+    click.edit(filename=str(runtime_config_path.resolve()))
 
 
 def main():
