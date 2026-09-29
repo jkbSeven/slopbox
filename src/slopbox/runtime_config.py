@@ -45,7 +45,7 @@ class Config(pydantic.BaseModel):
         if filesize > MAX_CONFIG_BYTES:
             raise RuntimeConfigError(
                 f"config file {runtime_config_path} has size of {filesize} bytes, "
-                f"maximum allowed is {MAX_CONFIG_BYTES} bytes"
+                f"maximum allowed size is {MAX_CONFIG_BYTES} bytes"
             )
 
         with runtime_config_path.open(mode="rb") as fp:
@@ -57,26 +57,26 @@ class Config(pydantic.BaseModel):
         try:
             c = cls.model_validate(config)
 
-        except pydantic.ValidationError as err:
-            _err = err.errors(include_url=False)[0]
+        except pydantic.ValidationError as _err:
+            err = _err.errors(include_url=False)[0]
+            err_msg = _err
 
-            _err_msg = err
-            if _err["type"] == "extra_forbidden":
-                base = str(_err["loc"][0])
+            if err["type"] == "extra_forbidden":
+                base = str(err["loc"][0])
 
                 remaining: str | None = None
-                if isinstance(_err["input"], dict):
-                    remaining = _walk_dict_keys(_err["input"])
+                if isinstance(err["input"], dict):
+                    remaining = _walk_dict_keys(err["input"])
 
                 final = f"{base}.{remaining}" if remaining else base
 
-                _err_msg = (
+                err_msg = (
                     "following config option was set but has no effect "
                     f"(check for typos): {final}"
                 )
 
             raise RuntimeConfigError(
-                f"invalid runtime configuration: {_err_msg}"
-            ) from err
+                f"invalid runtime configuration: {err_msg}"
+            ) from _err
 
         return c

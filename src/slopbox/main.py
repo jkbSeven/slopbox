@@ -155,8 +155,6 @@ def config_show():
 def config_edit():
     """edit runtime configuration in your text editor ($EDITOR)"""
     runtime_config_path = CONFIG_DIR / "config.toml"
-    runtime_config_path.touch(exist_ok=True)
-
     click.edit(filename=str(runtime_config_path.resolve()))
 
 
