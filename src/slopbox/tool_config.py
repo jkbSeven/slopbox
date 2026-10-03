@@ -42,17 +42,21 @@ class Config(pydantic.BaseModel):
 
         except pydantic.ValidationError as err:
             errors = err.errors(include_url=False)
-            errors_pretty = map(lambda e: str({"field": e["loc"][0], "error": e["msg"]}), errors)
-            raise ConfigError(f"invalid configuration:\n{'\n'.join(errors_pretty)}")
+            errors_pretty = map(
+                lambda e: str({"field": e["loc"][0], "error": e["msg"]}), errors
+            )
+            raise ConfigError(
+                f"invalid configuration:\n{'\n'.join(errors_pretty)}"
+            ) from err
 
         except Exception as err:
-            raise ConfigError(f"invalid configuration: {err}")
+            raise ConfigError(f"invalid configuration: {err}") from err
 
         return c
 
     def pretty_print(self) -> str:
         # assumes flat config struct
-        return '\n'.join([f"{k} = {v}" for k, v in self])
+        return "\n".join([f"{k} = {v}" for k, v in self])
 
 
 load = Config.load

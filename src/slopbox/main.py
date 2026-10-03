@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 
-from slopbox import const, config, tool_config
+from slopbox import config, const, tool_config
 from slopbox.checks import (
     can_run,
     is_docker_available,
