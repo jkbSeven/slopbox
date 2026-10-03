@@ -7,4 +7,7 @@ fmt:
 lint:
 	uv run ruff check {{CODEDIRS}}
 
-ci: fmt lint
+test:
+    uv run pytest -v tests
+
+ci: fmt lint test
