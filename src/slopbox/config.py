@@ -17,7 +17,7 @@ class ConfigError(Exception):
 
 
 class Config(pydantic.BaseModel):
-    slopbox_env_dir: Path = (Path.home() / ".config" / "slopbox")
+    slopbox_env_dir: Path = Path.home() / ".config" / "slopbox"
 
     model_config = pydantic.ConfigDict(
         extra="forbid",

@@ -38,6 +38,7 @@ class Lock(pydantic.BaseModel):
 
 class Nix:
     """handy wrapper around nix commands"""
+
     experimental_features = ["fetch-tree", "flakes", "nix-command"]
 
     @classmethod
@@ -49,7 +50,7 @@ class Nix:
         ] + cmd
 
     @classmethod
-    @functools.lru_cache()
+    @functools.lru_cache
     def version(cls) -> str:
         if not cls.is_available():
             raise NixError(
@@ -64,8 +65,7 @@ class Nix:
 
         if result.returncode != 0:
             raise NixError(
-                "unable to check Nix version: "
-                f"{result.stderr.decode(encoding="utf-8")}"
+                f"unable to check Nix version: {result.stderr.decode(encoding='utf-8')}"
             )
 
         # example output: `nix (Nix) 2.34.8`
@@ -73,7 +73,7 @@ class Nix:
         return result.stdout.decode(encoding="utf-8").split()[-1]
 
     @classmethod
-    @functools.lru_cache()
+    @functools.lru_cache
     def is_available(cls, sys_path: str | None = None) -> bool:
         return shutil.which("nix", path=sys_path) is not None
 

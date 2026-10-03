@@ -2,10 +2,11 @@ from pathlib import Path
 
 import click
 
-from slopbox import config, const, container_engine, config, environment
-from slopbox.nix import Nix, NixError, Lock
+from slopbox import config, const, container_engine, environment
+from slopbox.nix import Lock, Nix, NixError
 
 VERSION = "0.1.0"
+
 
 class fmt:
     @staticmethod
@@ -69,16 +70,15 @@ def cli_health():
     try:
         cengine = container_engine.get_container_engine()
     except container_engine.ContainerEngineError as err:
-        cengine_status = f"Container engine: {fmt.red('MISSING', bold=True)} (err: {err})"
+        cengine_status = (
+            f"Container engine: {fmt.red('MISSING', bold=True)} (err: {err})"
+        )
     else:
         rootless_status = (
-            "(rootless)"
-            if cengine.is_rootless()
-            else fmt.red("(non-rootless)")
+            "(rootless)" if cengine.is_rootless() else fmt.red("(non-rootless)")
         )
         cengine_status = (
-            "Container engine: "
-            f"{fmt.green(cengine.name, bold=True)} {rootless_status}"
+            f"Container engine: {fmt.green(cengine.name, bold=True)} {rootless_status}"
         )
     click.echo(cengine_status)
 
@@ -147,9 +147,7 @@ def cli_config_show():
         c = config.load()
 
     except config.ConfigError as err:
-        raise click.ClickException(
-            f"error while loading tool config: {err}"
-        ) from err
+        raise click.ClickException(f"error while loading tool config: {err}") from err
 
     click.echo(c.pretty_print())
 
