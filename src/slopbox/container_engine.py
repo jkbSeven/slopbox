@@ -53,6 +53,9 @@ class PodmanContainerEngine:
     @classmethod
     @functools.lru_cache
     def is_rootless(cls) -> bool:
+        if not cls.is_available():
+            raise ContainerEngineError("podman is not installed")
+
         # TODO: check if having non-rootless podman is even possible
         return True
 
