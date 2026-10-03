@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 
-from slopbox import config, const, container_engine, tool_config
+from slopbox import config, const, container_engine, config, environment
 from slopbox.nix import Nix, NixError, Lock
 
 VERSION = "0.1.0"
@@ -95,13 +95,17 @@ def cli_init():
     """initialize slopbox configuration (user-wide)"""
     if not Nix.is_available():
         raise click.ClickException(
-            "You have to install Nix prior to using slopbox, more info: https://nixos.org/"
+            "You have to install Nix prior to using slopbox; "
+            "Nix main page: https://nixos.org/"
         )
 
-    _init_config_dir()
+    # FIXME: allow user to override with --config /path/to/config.toml
+    c = config.load()
+
+    _init_config_dir(c.slopbox_env_dir)
 
     lock: Lock
-    lock_file = CONFIG_DIR / "slopbox.lock"
+    lock_file = c.slopbox_env_dir / "slopbox.lock"
 
     if not lock_file.exists():
         try:
@@ -125,9 +129,9 @@ def cli_init():
             encoding="utf-8",
         )
 
-    slopbox_file = CONFIG_DIR / "slopbox.nix"
+    slopbox_file = c.slopbox_env_dir / "slopbox.nix"
     if not slopbox_file.exists():
-        slopbox_file.write_text(config.EXAMPLE_SLOPBOX_CONFIG, encoding="utf-8")
+        slopbox_file.write_text(environment.EXAMPLE_ENV_CONFIG, encoding="utf-8")
 
 
 @cli.group("config")
@@ -138,20 +142,14 @@ def cli_config():
 @cli_config.command("show")
 def cli_config_show():
     """show resolved tool configuration"""
-    config_path = tool_config.DEFAULT_CONFIG_PATH
+    try:
+        # FIXME: allow user to override with --config /path/to/config.toml
+        c = config.load()
 
-    c: tool_config.Config
-    if config_path.exists():
-        try:
-            c = tool_config.load(config_path)
-
-        except tool_config.ConfigError as err:
-            raise click.ClickException(
-                f"error while loading tool config: {err}"
-            ) from err
-
-    else:
-        c = tool_config.Config()
+    except config.ConfigError as err:
+        raise click.ClickException(
+            f"error while loading tool config: {err}"
+        ) from err
 
     click.echo(c.pretty_print())
 
@@ -159,7 +157,10 @@ def cli_config_show():
 @cli_config.command("edit")
 def cli_config_edit():
     """edit tool configuration in your text editor ($EDITOR)"""
-    click.edit(filename=str(tool_config.DEFAULT_CONFIG_PATH))
+    # FIXME: allow user to override with --config /path/to/config.toml
+    p = config.DEFAULT_CONFIG_PATH
+    p.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    click.edit(filename=str(p))
 
 
 def main():
