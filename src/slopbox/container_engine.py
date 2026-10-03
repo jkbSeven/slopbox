@@ -69,5 +69,5 @@ def get_container_engine(sys_path: str | None = None) -> ContainerEngine:
         return DockerContainerEngine()
 
     raise ContainerEngineError(
-        "neither podman or docker is installed (not found in $PATH)"
+        "neither podman nor docker is installed (not found in $PATH)"
     )
