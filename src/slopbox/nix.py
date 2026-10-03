@@ -1,4 +1,6 @@
+import functools
 import logging
+import shutil
 import subprocess
 from typing import Annotated
 
@@ -29,12 +31,13 @@ class NixFetchTreeResult(pydantic.BaseModel):
     shortRev: Annotated[str, pydantic.Field(alias="shortRev")]
 
 
-class SlopboxLock(pydantic.BaseModel):
+class Lock(pydantic.BaseModel):
     nixpkgs: NixFetchTreeResult
     slopbox: NixFetchTreeResult
 
 
 class Nix:
+    """handy wrapper around nix commands"""
     experimental_features = ["fetch-tree", "flakes", "nix-command"]
 
     @classmethod
@@ -46,13 +49,23 @@ class Nix:
         ] + cmd
 
     @classmethod
+    @functools.lru_cache()
     def version(cls) -> str:
-        result = subprocess.run(cls.build_cmd(["--version"]), capture_output=True)
+        if not cls.is_available():
+            raise NixError(
+                "Nix is not installed (not found in $PATH):"
+                "make sure you've installed Nix on your system (https://nixos.org/)"
+            )
+
+        result = subprocess.run(
+            cls.build_cmd(["--version"]),
+            capture_output=True,
+        )
 
         if result.returncode != 0:
             raise NixError(
-                "Unable to check Nix version, "
-                "make sure you've installed Nix on your system (https://nixos.org/)"
+                "unable to check Nix version: "
+                f"{result.stderr.decode(encoding="utf-8")}"
             )
 
         # example output: `nix (Nix) 2.34.8`
@@ -60,14 +73,9 @@ class Nix:
         return result.stdout.decode(encoding="utf-8").split()[-1]
 
     @classmethod
-    def is_available(cls) -> bool:
-        try:
-            _ = cls.version()
-            ok = True
-        except NixError:
-            ok = False
-
-        return ok
+    @functools.lru_cache()
+    def is_available(cls, sys_path: str | None = None) -> bool:
+        return shutil.which("nix", path=sys_path) is not None
 
     @classmethod
     def fetch_tree(cls, url: str) -> NixFetchTreeResult:

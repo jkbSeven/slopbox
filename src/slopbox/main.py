@@ -2,49 +2,49 @@ from pathlib import Path
 
 import click
 
-from slopbox import config, const, tool_config
-from slopbox.checks import (
-    can_run,
-    is_docker_available,
-    is_rootless_docker,
-)
-from slopbox.nix import Nix, NixError, SlopboxLock
+from slopbox import config, const, container_engine, tool_config
+from slopbox.nix import Nix, NixError, Lock
 
 VERSION = "0.1.0"
 
-HOME_DIR = Path.home().resolve()
-CONFIG_DIR = HOME_DIR / ".config" / "slopbox"
-
-
 class fmt:
     @staticmethod
-    def red(msg: str):
-        return click.style(msg, fg="red")
+    def red(msg: str, **kwargs):
+        return click.style(msg, fg="red", **kwargs)
 
     @staticmethod
-    def green(msg: str):
-        return click.style(msg, fg="green")
+    def green(msg: str, **kwargs):
+        return click.style(msg, fg="green", **kwargs)
 
 
-def _init_config_dir():
-    if not HOME_DIR.exists():
-        raise click.ClickException(
-            f"user's home directory ({HOME_DIR}) does not exist, cannot proceed"
-        )
-
+def _init_config_dir(config_dir: Path):
     try:
-        CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+        config_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     except (OSError, FileNotFoundError) as err:
         raise click.ClickException(
-            f"unable to create or read the config directory ({CONFIG_DIR}): {err}"
+            f"unable to create or read the config directory ({config_dir}): {err}"
         ) from err
 
 
 def _err_if_unhealthy() -> None:
-    if not can_run():
+    if not Nix.is_available():
         raise click.ClickException(
-            "slopbox health check failed, "
-            "please run `slopbox health` and fix reported issues"
+            "You have to install Nix prior to using slopbox; "
+            "Nix main page: https://nixos.org/"
+        )
+
+    try:
+        cengine = container_engine.get_container_engine()
+
+    except container_engine.ContainerEngineError as err:
+        raise click.ClickException(
+            f"unable to resolve container engine: {err}"
+        ) from err
+
+    if not cengine.is_rootless():
+        raise click.ClickException(
+            f"{cengine.name} is not running in rootless mode, "
+            "this has security implications and slopbox cannot proceed"
         )
 
 
@@ -58,25 +58,29 @@ def cli_health():
     """validate if runtime is healthy"""
     click.echo(f"version: {VERSION}")
 
-    try:
-        nix_version = Nix.version()
-        click.echo(f"nix: {fmt.green('OK')} ({nix_version})")
-    except NixError:
-        click.echo("nix: " + fmt.red("MISSING"))
-
-    if not is_docker_available():
-        click.echo("docker: " + fmt.red("MISSING"))
+    nix_status: str
+    if not Nix.is_available():
+        nix_status = f"Nix: {fmt.red('NOT INSTALLED', bold=True)}"
     else:
-        click.echo("docker: " + fmt.green("INSTALLED"))
-        click.echo(" - rootless: ", nl=False)
+        nix_status = f"Nix: {fmt.green('OK', bold=True)}"
+    click.echo(nix_status)
 
-        rootless = is_rootless_docker()
-        if rootless == 0:
-            click.echo(fmt.red("NO"))
-        elif rootless == 1:
-            click.echo(fmt.green("YES"))
-        else:
-            click.echo(fmt.red("UNABLE TO CHECK"))
+    cengine_status: str
+    try:
+        cengine = container_engine.get_container_engine()
+    except container_engine.ContainerEngineError as err:
+        cengine_status = f"Container engine: {fmt.red('MISSING', bold=True)} (err: {err})"
+    else:
+        rootless_status = (
+            "(rootless)"
+            if cengine.is_rootless()
+            else fmt.red("(non-rootless)")
+        )
+        cengine_status = (
+            "Container engine: "
+            f"{fmt.green(cengine.name, bold=True)} {rootless_status}"
+        )
+    click.echo(cengine_status)
 
 
 @cli.command("build")
@@ -96,7 +100,7 @@ def cli_init():
 
     _init_config_dir()
 
-    lock: SlopboxLock
+    lock: Lock
     lock_file = CONFIG_DIR / "slopbox.lock"
 
     if not lock_file.exists():
@@ -114,7 +118,7 @@ def cli_init():
                 f"failed to fetch and pin slopbox revision: {err}"
             ) from err
 
-        lock = SlopboxLock(nixpkgs=nixpkgs_tree, slopbox=slopbox_tree)
+        lock = Lock(nixpkgs=nixpkgs_tree, slopbox=slopbox_tree)
 
         lock_file.write_text(
             lock.model_dump_json(indent=2, by_alias=True),
