@@ -37,6 +37,13 @@ class DockerContainerEngine:
             capture_output=True,
         )
 
+        if ret.returncode != 0:
+            raise ContainerEngineError(
+                "error while checking if docker is rootless: "
+                "command 'docker info' failed: "
+                f"{ret.stderr.decode(encoding='utf-8')}"
+            )
+
         clean = ret.stdout.decode(encoding="utf-8").strip("[]")
 
         return "name=rootless" in clean
