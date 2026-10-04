@@ -50,6 +50,7 @@ def _err_if_unhealthy() -> None:
 
 
 @click.group()
+@click.version_option(version=VERSION)
 def cli():
     """secure-ish environment for running AI agents"""
 
@@ -57,8 +58,6 @@ def cli():
 @cli.command("health")
 def cli_health():
     """validate if runtime is healthy"""
-    click.echo(f"version: {VERSION}")
-
     nix_status: str
     if not Nix.is_available():
         nix_status = f"Nix: {fmt.red('NOT INSTALLED', bold=True)}"
