@@ -51,8 +51,16 @@ def _err_if_unhealthy() -> None:
 
 @click.group()
 @click.version_option(version=VERSION)
-def cli():
+@click.option(
+    "--config",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="path to a config file (.toml)",
+)
+@click.pass_context
+def cli(ctx: click.Context, config: Path | None):
     """secure-ish environment for running AI agents"""
+    ctx.ensure_object(dict)
+    ctx.obj["config"] = config
 
 
 @cli.command("health")
@@ -90,7 +98,8 @@ def cli_build():
 
 
 @cli.command("init")
-def cli_init():
+@click.pass_context
+def cli_init(ctx: click.Context):
     """initialize slopbox configuration (user-wide)"""
     if not Nix.is_available():
         raise click.ClickException(
@@ -98,8 +107,7 @@ def cli_init():
             "Nix main page: https://nixos.org/"
         )
 
-    # FIXME: allow user to override with --config /path/to/config.toml
-    c = config.load()
+    c = config.load(ctx.obj["config"])
 
     _init_config_dir(c.slopbox_env_dir)
 
@@ -139,11 +147,11 @@ def cli_config():
 
 
 @cli_config.command("show")
-def cli_config_show():
+@click.pass_context
+def cli_config_show(ctx: click.Context):
     """show resolved tool configuration"""
     try:
-        # FIXME: allow user to override with --config /path/to/config.toml
-        c = config.load()
+        c = config.load(ctx.obj["config"])
 
     except config.ConfigError as err:
         raise click.ClickException(f"error while loading tool config: {err}") from err
@@ -152,11 +160,17 @@ def cli_config_show():
 
 
 @cli_config.command("edit")
-def cli_config_edit():
+@click.pass_context
+def cli_config_edit(ctx: click.Context):
     """edit tool configuration in your text editor ($EDITOR)"""
-    # FIXME: allow user to override with --config /path/to/config.toml
-    p = config.DEFAULT_CONFIG_PATH
+    p = ctx.obj["config"] or config.DEFAULT_CONFIG_PATH
     p.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+
+    if p.exists() and not p.is_file():
+        raise click.ClickException(
+            f"config path exists but does not point to a file: {p}"
+        )
+
     click.edit(filename=str(p))
 
 
