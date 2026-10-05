@@ -93,3 +93,12 @@ def test_nix_fetch_tree_cmd_error():
             match=re.escape(f"failed to fetch the '{url}' resource with Nix fetchTree: {err}")
         ):
             Nix.fetch_tree(url)
+
+def test_nix_version_cmd_error():
+    with patch("slopbox.nix.subprocess") as mock_subprocess:
+        result = MagicMock(returncode=1)
+        result.stderr.decode.return_value = "some error"
+        mock_subprocess.run.return_value = result
+
+        with pytest.raises(NixError):
+            Nix.version()
