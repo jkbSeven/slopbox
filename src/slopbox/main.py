@@ -50,11 +50,11 @@ def _err_if_unhealthy() -> None:
 
 
 @click.group()
-@click.version_option(version=VERSION)
+@click.version_option(version=VERSION, message="%(version)s")
 @click.option(
     "--config",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="path to a config file (.toml)",
+    help="Path to a config file (.toml)",
 )
 @click.pass_context
 def cli(ctx: click.Context, config: Path | None):
@@ -65,7 +65,7 @@ def cli(ctx: click.Context, config: Path | None):
 
 @cli.command("health")
 def cli_health():
-    """validate if runtime is healthy"""
+    """validate runtime health"""
     nix_status: str
     if not Nix.is_available():
         nix_status = f"Nix: {fmt.red('NOT INSTALLED', bold=True)}"
@@ -92,7 +92,7 @@ def cli_health():
 
 @cli.command("build")
 def cli_build():
-    """build all dependencies for a given profile"""
+    """build profile"""
     _err_if_unhealthy()
     click.echo("Hello, World!")
 
@@ -100,7 +100,7 @@ def cli_build():
 @cli.command("init")
 @click.pass_context
 def cli_init(ctx: click.Context):
-    """initialize slopbox configuration (user-wide)"""
+    """initialize slopbox environment (user-wide)"""
     if not Nix.is_available():
         raise click.ClickException(
             "You have to install Nix prior to using slopbox; "
