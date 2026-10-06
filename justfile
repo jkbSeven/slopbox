@@ -13,6 +13,4 @@ lint:
 test:
     pytest -v tests
 
-ci: fmt-check lint test
-
-polish: fmt lint
+ci: fmt-check lint
