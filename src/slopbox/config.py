@@ -17,7 +17,9 @@ class ConfigError(Exception):
 
 
 class Config(pydantic.BaseModel):
-    slopbox_env_dir: Path = Path.home() / ".config" / "slopbox"
+    slopbox_env_dir: Path = pydantic.Field(
+        default_factory=lambda: Path.home() / ".config" / "slopbox"
+    )
 
     model_config = pydantic.ConfigDict(
         extra="forbid",
@@ -26,7 +28,7 @@ class Config(pydantic.BaseModel):
 
     @pydantic.field_validator("slopbox_env_dir", mode="after")
     @classmethod
-    def expand_slopbox_dir(cls, v: Path) -> Path:
+    def expand_slopbox_env_dir(cls, v: Path) -> Path:
         return v.expanduser().resolve()
 
     @classmethod
