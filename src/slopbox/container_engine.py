@@ -17,7 +17,7 @@ class ContainerEngine(Protocol):
     def is_rootless(cls) -> bool: ...
 
 
-class DockerContainerEngine:
+class Docker:
     name = "docker"
 
     @classmethod
@@ -46,7 +46,7 @@ class DockerContainerEngine:
         return "name=rootless" in clean
 
 
-class PodmanContainerEngine:
+class Podman:
     name = "podman"
 
     @classmethod
@@ -64,11 +64,11 @@ class PodmanContainerEngine:
 
 def get_container_engine() -> ContainerEngine:
     # in case user has both, we prefer podman
-    if PodmanContainerEngine.is_available():
-        return PodmanContainerEngine()
+    if Podman.is_available():
+        return Podman()
 
-    if DockerContainerEngine.is_available():
-        return DockerContainerEngine()
+    if Docker.is_available():
+        return Docker()
 
     raise ContainerEngineError(
         "neither podman nor docker is installed (not found in $PATH)"

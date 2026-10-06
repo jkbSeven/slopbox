@@ -16,7 +16,7 @@ from slopbox import container_engine
 def test_podman_is_available(expected: bool):
     assert (
         container_engine
-        .PodmanContainerEngine
+        .Podman
         .is_available() is expected
     )
 
@@ -33,7 +33,7 @@ def test_podman_is_available(expected: bool):
 def test_docker_is_available(expected: bool):
     assert (
         container_engine
-        .DockerContainerEngine
+        .Docker
         .is_available() is expected
     )
 
@@ -41,9 +41,9 @@ def test_docker_is_available(expected: bool):
 @pytest.mark.parametrize(
     ("fake_bin_mode", "fake_bin_files", "expected"),
     (
-        (0o700, ["docker"], container_engine.DockerContainerEngine),
-        (0o700, ["podman"], container_engine.PodmanContainerEngine),
-        (0o700, ["podman", "docker"], container_engine.PodmanContainerEngine),
+        (0o700, ["docker"], container_engine.Docker),
+        (0o700, ["podman"], container_engine.Podman),
+        (0o700, ["podman", "docker"], container_engine.Podman),
     )
 )
 @pytest.mark.usefixtures("fake_bin")
