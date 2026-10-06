@@ -38,14 +38,21 @@ def fake_bin_files() -> list[str]:
 
 
 @pytest.fixture
-def fake_bin(tmp_path: Path, fake_bin_mode: int, fake_bin_files: list[str]):
+def fake_bin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_bin_mode: int,
+    fake_bin_files: list[str],
+) -> Path:
     bindir = tmp_path / "bin"
-    bindir.mkdir()
+    bindir.mkdir(mode=0o700, exist_ok=False)
 
     for name in fake_bin_files:
         binfile = bindir / name
         binfile.touch(mode=fake_bin_mode, exist_ok=False)
         binfile.write_text("pytest: mocked binary", encoding="utf-8")
+
+    monkeypatch.setenv("PATH", str(bindir))
 
     return bindir
 
@@ -56,7 +63,7 @@ def config_overrides() -> dict:
 
 
 @pytest.fixture
-def config(tmp_path: Path, config_overrides: dict):
+def config(tmp_path: Path, config_overrides: dict) -> dict:
     return {
         "slopbox_env_dir": str(tmp_path / "env")
     } | config_overrides

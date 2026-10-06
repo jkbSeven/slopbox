@@ -1,6 +1,5 @@
 import re
 from unittest.mock import MagicMock, patch
-from pathlib import Path
 
 import pytest
 
@@ -14,8 +13,9 @@ from slopbox.nix import Nix, NixError
         (0o600, ["nix"], False),  # not executable
     )
 )
-def test_nix_is_available(fake_bin: Path, expected: bool):
-    assert Nix.is_available(sys_path=str(fake_bin)) is expected
+@pytest.mark.usefixtures("fake_bin")
+def test_nix_is_available(expected: bool):
+    assert Nix.is_available() is expected
 
 
 @pytest.mark.parametrize(

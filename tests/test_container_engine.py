@@ -1,5 +1,4 @@
 import re
-from pathlib import Path
 
 import pytest
 from slopbox import container_engine
@@ -13,11 +12,12 @@ from slopbox import container_engine
         (0o600, ["podman"], False),  # not executable
     )
 )
-def test_podman_is_available(fake_bin: Path, expected: bool):
+@pytest.mark.usefixtures("fake_bin")
+def test_podman_is_available(expected: bool):
     assert (
         container_engine
         .PodmanContainerEngine
-        .is_available(sys_path=str(fake_bin)) is expected
+        .is_available() is expected
     )
 
 
@@ -29,11 +29,12 @@ def test_podman_is_available(fake_bin: Path, expected: bool):
         (0o600, ["docker"], False),  # not executable
     )
 )
-def test_docker_is_available(fake_bin: Path, expected: bool):
+@pytest.mark.usefixtures("fake_bin")
+def test_docker_is_available(expected: bool):
     assert (
         container_engine
         .DockerContainerEngine
-        .is_available(sys_path=str(fake_bin)) is expected
+        .is_available() is expected
     )
 
 
@@ -45,13 +46,13 @@ def test_docker_is_available(fake_bin: Path, expected: bool):
         (0o700, ["podman", "docker"], container_engine.PodmanContainerEngine),
     )
 )
+@pytest.mark.usefixtures("fake_bin")
 def test_get_container_engine_success(
-    fake_bin: Path,
-    expected: container_engine.ContainerEngine,
+    expected: container_engine.ContainerEngine
 ):
     assert (
         container_engine
-        .get_container_engine(sys_path=str(fake_bin))
+        .get_container_engine()
         .name == expected.name
     )
 
@@ -64,11 +65,12 @@ def test_get_container_engine_success(
         (0o600, ["podman"]),  # not executable
     )
 )
-def test_get_container_engine_error(fake_bin: Path):
+@pytest.mark.usefixtures("fake_bin")
+def test_get_container_engine_error():
     with pytest.raises(
         container_engine.ContainerEngineError,
         match=re.escape(
             "neither podman nor docker is installed (not found in $PATH)"
         ),
     ):
-        container_engine.get_container_engine(sys_path=str(fake_bin))
+        container_engine.get_container_engine()

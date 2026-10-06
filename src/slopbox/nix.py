@@ -73,9 +73,8 @@ class Nix:
         return result.stdout.decode(encoding="utf-8").split()[-1]
 
     @classmethod
-    @functools.lru_cache
-    def is_available(cls, sys_path: str | None = None) -> bool:
-        return shutil.which("nix", path=sys_path) is not None
+    def is_available(cls) -> bool:
+        return shutil.which("nix") is not None
 
     @classmethod
     def fetch_tree(cls, url: str) -> NixFetchTreeResult:
