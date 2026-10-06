@@ -1,30 +1,32 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
 import pytest
 from click.testing import CliRunner
 
 from slopbox import config, const, container_engine, environment, nix
 from slopbox.main import cli
 
-
-NIXPKGS_TREE = nix.NixFetchTreeResult(**{
-    "url": "github:nixos/nixpkgs/nixos-unstable",
-    "lastModified": 1790822859,
-    "lastModifiedDate": "20261001024739",
-    "narHash": "sha256-69xHQhAeMAD2wDXO7T2pcOZIF9Sga2W+JkmY2a11Ops=",
-    "rev": "c59305bab2065cfecc4944690d9eedbb56f3a9fa",
-    "shortRev": "c59305b"
-  }
+NIXPKGS_TREE = nix.NixFetchTreeResult(
+    **{
+        "url": "github:nixos/nixpkgs/nixos-unstable",
+        "lastModified": 1790822859,
+        "lastModifiedDate": "20261001024739",
+        "narHash": "sha256-69xHQhAeMAD2wDXO7T2pcOZIF9Sga2W+JkmY2a11Ops=",
+        "rev": "c59305bab2065cfecc4944690d9eedbb56f3a9fa",
+        "shortRev": "c59305b",
+    }
 )
 
-SLOPBOX_TREE = nix.NixFetchTreeResult(**{
-    "url": "github:jkbSeven/slopbox",
-    "lastModified": 1785955512,
-    "lastModifiedDate": "20260805184512",
-    "narHash": "sha256-V+ZWAlt2TPjvozaQA7ERe7JRJyxf4OEPVP22o2xbfEA=",
-    "rev": "1007a7f3ebdfaf153bae13a3356f3e6e08ea5913",
-    "shortRev": "1007a7f"
-  }
+SLOPBOX_TREE = nix.NixFetchTreeResult(
+    **{
+        "url": "github:jkbSeven/slopbox",
+        "lastModified": 1785955512,
+        "lastModifiedDate": "20260805184512",
+        "narHash": "sha256-V+ZWAlt2TPjvozaQA7ERe7JRJyxf4OEPVP22o2xbfEA=",
+        "rev": "1007a7f3ebdfaf153bae13a3356f3e6e08ea5913",
+        "shortRev": "1007a7f",
+    }
 )
 
 FETCH_TREE_MAPPING = {
@@ -52,7 +54,7 @@ def test_cli_health_when_nix_is_available(runner: CliRunner):
 
 @patch(
     "slopbox.main.container_engine.get_container_engine",
-    MagicMock(side_effect=container_engine.ContainerEngineError("some err"))
+    MagicMock(side_effect=container_engine.ContainerEngineError("some err")),
 )
 def test_cli_health_when_container_engine_not_available(runner: CliRunner):
     result = runner.invoke(cli, ["health"])
@@ -64,8 +66,7 @@ def test_cli_health_when_container_engine_not_available(runner: CliRunner):
     (
         (False, "non-rootless"),
         (True, "rootless"),
-    )
-
+    ),
 )
 def test_cli_health_with_docker(
     runner: CliRunner,
@@ -96,7 +97,7 @@ def test_cli_health_with_podman(runner: CliRunner):
         mock_get_cengine.return_value = mock_podman
 
         result = runner.invoke(cli, ["health"])
-        assert f"Container engine: podman (rootless)" in result.stdout
+        assert "Container engine: podman (rootless)" in result.stdout
 
 
 @patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))

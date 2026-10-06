@@ -5,13 +5,14 @@ import pytest
 
 from slopbox.nix import Nix, NixError
 
+
 @pytest.mark.parametrize(
     ("fake_bin_mode", "fake_bin_files", "expected"),
     (
         (0o700, ["hello"], False),
         (0o700, ["nix"], True),
         (0o600, ["nix"], False),  # not executable
-    )
+    ),
 )
 @pytest.mark.usefixtures("fake_bin")
 def test_nix_is_available(expected: bool):
@@ -22,13 +23,13 @@ def test_nix_is_available(expected: bool):
     ("args", "expected"),
     (
         (
-            ["--version"], 
+            ["--version"],
             [
                 "nix",
                 "--extra-experimental-features",
                 "fetch-tree flakes nix-command",
                 "--version",
-            ]
+            ],
         ),
         (
             [
@@ -37,7 +38,7 @@ def test_nix_is_available(expected: bool):
                 "--impure",
                 "--expr",
                 'builtins.removeAttrs (builtins.fetchTree URL) [ "outPath" ]',
-            ], 
+            ],
             [
                 "nix",
                 "--extra-experimental-features",
@@ -47,9 +48,9 @@ def test_nix_is_available(expected: bool):
                 "--impure",
                 "--expr",
                 'builtins.removeAttrs (builtins.fetchTree URL) [ "outPath" ]',
-            ]
+            ],
         ),
-    )
+    ),
 )
 def test_nix_build_cmd_helper(args: list[str], expected: list[str]):
     assert Nix.build_cmd(args) == expected
@@ -90,9 +91,12 @@ def test_nix_fetch_tree_cmd_error():
 
         with pytest.raises(
             NixError,
-            match=re.escape(f"failed to fetch the '{url}' resource with Nix fetchTree: {err}")
+            match=re.escape(
+                f"failed to fetch the '{url}' resource with Nix fetchTree: {err}"
+            ),
         ):
             Nix.fetch_tree(url)
+
 
 def test_nix_version_cmd_error():
     with patch("slopbox.nix.subprocess") as mock_subprocess:

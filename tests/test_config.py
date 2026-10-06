@@ -19,10 +19,7 @@ def test_extra_options_not_allowed(config_file: Path):
     with pytest.raises(
         c.ConfigError,
         match=re.escape(
-            "{"
-            "'field': 'non_declared_opt', "
-            "'error': 'Extra inputs are not permitted'"
-            "}"
+            "{'field': 'non_declared_opt', 'error': 'Extra inputs are not permitted'}"
         ),
     ):
         c.load(config_file)

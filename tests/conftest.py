@@ -64,23 +64,20 @@ def config_overrides() -> dict:
 
 @pytest.fixture
 def config(tmp_path: Path, config_overrides: dict) -> dict:
-    return {
-        "slopbox_env_dir": str(tmp_path / "env")
-    } | config_overrides
+    return {"slopbox_env_dir": str(tmp_path / "env")} | config_overrides
 
 
 @pytest.fixture
 def config_file(tmp_path: Path, config: dict) -> Path:
     out = []
     for k, v in config.items():
-
         if isinstance(v, str):
             out.append(f"{k} = '{v}'")
             continue
 
         out.append(f"{k} = {v}")
 
-    c_toml = '\n'.join(out)
+    c_toml = "\n".join(out)
     config_path = tmp_path / "config.toml"
     config_path.touch(mode=0o600, exist_ok=False)
     config_path.write_text(c_toml)
