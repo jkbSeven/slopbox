@@ -1,5 +1,5 @@
 {
-  description = "Flake for running AI agents in a secure-ish environment";
+  description = "Run AI agents in a secure-ish environment";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -20,11 +20,12 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
-          default = pkgs.mkShell {
+          default = pkgs.mkShellNoCC {
             packages = [
               pkgs.python314
               pkgs.uv
               pkgs.just
+              pkgs.ruff
             ];
 
             # running `ruff` downloaded through uv will still fail on NixOS though

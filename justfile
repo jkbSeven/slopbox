@@ -1,10 +1,16 @@
-CODEDIRS := "src"
+CODEDIRS := "src tests"
 
 fmt:
-	uv run ruff check --select I --fix {{CODEDIRS}}
-	uv run ruff format {{CODEDIRS}}
+	ruff check --select I --fix {{CODEDIRS}}
+	ruff format {{CODEDIRS}}
+
+fmt-check:
+	ruff format --check {{CODEDIRS}}
 
 lint:
-	uv run ruff check {{CODEDIRS}}
+	ruff check {{CODEDIRS}}
 
-ci: fmt lint
+test:
+    pytest -v tests
+
+ci: fmt-check lint
