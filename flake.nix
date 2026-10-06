@@ -25,6 +25,7 @@
               pkgs.python314
               pkgs.uv
               pkgs.just
+              pkgs.ruff
             ];
 
             # running `ruff` downloaded through uv will still fail on NixOS though
