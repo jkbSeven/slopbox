@@ -12,6 +12,9 @@ let
       pkgs.man
       pkgs.less
     ];
+    config = {
+      eval = import ./eval.nix;
+    };
   };
 in
 lib

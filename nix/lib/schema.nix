@@ -11,7 +11,6 @@ let
       type = t.nullOr type;
       default = null;
     };
-  cfg = config;
 in
 {
   options = {
@@ -29,21 +28,21 @@ in
     profiles = lib.mkOption {
       type = t.attrsOf (
         t.submodule (
-          { name, config, ... }: {
+          { name, ... }: {
             options = {
               agent = lib.mkOption {
                 type = t.package;
-                default = cfg.default.agent;
+                default = config.default.agent;
               };
 
               workspace = lib.mkOption {
                 type = t.externalPath;
-                default = cfg.default.workspace;
+                default = config.default.workspace;
               };
 
               useBasePkgs = lib.mkOption {
                 type = t.bool;
-                default = cfg.default.useBasePkgs or true; # 'true' is a sane default if user has not set otherwise
+                default = config.default.useBasePkgs or true;
               };
 
               pkgs = lib.mkOption {
