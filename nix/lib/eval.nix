@@ -1,3 +1,4 @@
+{ lib }:
 {
   pkgs ? null,
   nixpkgsUrl ? null,
@@ -11,14 +12,24 @@ assert
   || throw "you must pass one of 'slopboxEnv' or 'slopboxEnvPath'";
 
 let
-  _pkgs = if pkgs != null then pkgs else (import (builtins.fetchTree nixpkgsUrl) { system = "x86_64-linux"; });
+  _pkgs =
+    if pkgs != null then
+      pkgs
+    else
+      (import (builtins.fetchTree nixpkgsUrl) { system = "x86_64-linux"; });
   _slopboxEnv = if slopboxEnv != null then slopboxEnv else (import slopboxEnvPath);
 in
 _pkgs.lib.evalModules {
   modules = [
-    ({ config, ... }: { config._module.args = { pkgs = _pkgs; }; })
+    ({ config, ... }: {
+      config._module.args = {
+        pkgs = _pkgs;
+        libSlop = lib;
+      };
+    })
     ./schema.nix
     ./minimal.nix
+    ./build.nix
     _slopboxEnv
   ];
 }

@@ -3,17 +3,17 @@ let
   lib = {
     basePkgs = pkgs: [
       pkgs.bash
-      pkgs.coreutils
-      pkgs.git
       pkgs.cacert
+      pkgs.coreutils
       pkgs.curl
+      pkgs.git
       pkgs.gnugrep
       pkgs.gnused
-      pkgs.man
       pkgs.less
+      pkgs.man
     ];
     config = {
-      eval = import ./eval.nix;
+      eval = callLib ./eval.nix;
     };
   };
 in
