@@ -30,10 +30,12 @@ class NixFetchTreeResult(pydantic.BaseModel):
     rev: str
     shortRev: Annotated[str, pydantic.Field(alias="shortRev")]
 
+    def fetch_tree_url(self) -> str:
+        if self.url is None:
+            raise NixError("cannot produce fetch tree url because url field is None")
 
-class Lock(pydantic.BaseModel):
-    nixpkgs: NixFetchTreeResult
-    slopbox: NixFetchTreeResult
+        # FIXME: parse the url to allow for other fetch methods, owners, and repos
+        return f"github:nixos/nixpkgs/{self.rev}?narHash={self.nar_hash}"
 
 
 class Nix:
