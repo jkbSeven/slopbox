@@ -1,19 +1,24 @@
-EXAMPLE_ENV_CONFIG = """{ pkgs, libSlop, ...}:
-
+EXAMPLE_ENV_CONFIG = """{
+  pkgs,
+  ...
+}:
 {
-  defaults = {
+  default = {
     agent = pkgs.opencode;
+    workspace = "/workspace";
   };
 
   profiles = {
-    default = libSlop.mkProfile {
+    default = {
       pkgs = [
         pkgs.python314
         pkgs.uv
       ];
 
-      workspace = "/workspace";
+      runHook = "echo 'Hello, world!'";
     };
   };
+
+  schemaVersion = 1;
 }
 """
