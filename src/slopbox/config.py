@@ -28,7 +28,7 @@ class Config(pydantic.BaseModel):
 
     @pydantic.field_validator("slopbox_env_dir", mode="after")
     @classmethod
-    def expand_slopbox_env_dir(cls, v: Path) -> Path:
+    def __expand_slopbox_env_dir(cls, v: Path) -> Path:
         return v.expanduser().resolve()
 
     @classmethod
