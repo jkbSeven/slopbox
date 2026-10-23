@@ -50,14 +50,6 @@ in
                 default = [ ];
               };
 
-              defaultRuntime = lib.mkOption {
-                type = t.enum [
-                  "container"
-                  "vm"
-                ];
-                default = "container";
-              };
-
               runHook = lib.mkOption {
                 type = t.nullOr t.str;
                 default = null;
