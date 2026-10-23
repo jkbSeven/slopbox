@@ -42,7 +42,7 @@ in
 
               useBasePkgs = lib.mkOption {
                 type = t.bool;
-                default = config.default.useBasePkgs or true;
+                default = if config.default.useBasePkgs != null then config.default.useBasePkgs else true;
               };
 
               pkgs = lib.mkOption {
@@ -70,7 +70,7 @@ in
 
               homeDir = lib.mkOption {
                 type = t.externalPath;
-                default = "/home/agent";
+                default = "/home/${config.profiles.${name}.user}";
               };
 
               env = lib.mkOption {

@@ -5,6 +5,21 @@
   libSlop,
   ...
 }:
+let
+  loadImage = engine: drv: pkgs.writeShellApplication {
+    name = "loader";
+    text = ''
+      while IFS=':' read -r image_name image_tag; do
+        if [ "$image_name" = "${drv.imageName}" ] && [ "$image_tag" = "${drv.imageTag}" ]; then
+          printf 'Image %s:%s was already loaded, not loading again\n' "$image_name" "$image_tag"
+          exit 0
+        fi
+      done < <(${engine} image ls --format '{{ printf "%s:%s" .Repository .Tag}}')
+
+      ${engine} load < ${drv}
+    '';
+  };
+in
 {
   options.profiles = lib.mkOption {
     type = lib.types.attrsOf (
@@ -27,6 +42,18 @@
                       container = lib.mkOption {
                         type = lib.types.package;
                       };
+                      container-loader = lib.mkOption {
+                        type = lib.types.submodule {
+                          options = {
+                            docker = lib.mkOption {
+                              type = lib.types.package;
+                            };
+                            podman = lib.mkOption {
+                              type = lib.types.package;
+                            };
+                          };
+                        };
+                      };
                       vm = lib.mkOption {
                         type = lib.types.package;
                       };
@@ -35,7 +62,25 @@
                 };
 
                 proxy = lib.mkOption {
-                  type = lib.types.package;
+                  type = lib.types.submodule {
+                    options = {
+                      container = lib.mkOption {
+                        type = lib.types.package;
+                      };
+                      container-loader = lib.mkOption {
+                        type = lib.types.submodule {
+                          options = {
+                            docker = lib.mkOption {
+                              type = lib.types.package;
+                            };
+                            podman = lib.mkOption {
+                              type = lib.types.package;
+                            };
+                          };
+                        };
+                      };
+                    };
+                  };
                 };
               };
             };
@@ -54,7 +99,7 @@
                       entrypointScript = pkgs.writeShellApplication {
                         name = "entrypoint";
                         text =
-                          if cfg.runHook != "" then
+                          if cfg.runHook != null then
                             "${cfg.runHook}\nexec ${pkgs.bash}/bin/bash"
                           else
                             "exec ${pkgs.bash}/bin/bash";
@@ -64,12 +109,22 @@
                     [ (lib.getExe entrypointScript) ];
                 };
               };
+              container-loader = {
+                docker = loadImage "docker" cfg.build.runtime.container;
+                podman = loadImage "podman" cfg.build.runtime.container;
+              };
               vm = throw "vm runtime is not implemented yet!";
             };
 
-            proxy = pkgs.dockerTools.buildLayeredImage {
-              name = "slopbox-proxy-${name}";
-              contents = [ pkgs._3proxy ];
+            proxy = {
+              container = pkgs.dockerTools.buildLayeredImage {
+                name = "slopbox-proxy-${name}";
+                contents = [ pkgs._3proxy ];
+              };
+              container-loader = {
+                docker = loadImage "docker" cfg.build.proxy.container;
+                podman = loadImage "podman" cfg.build.proxy.container;
+              };
             };
           };
         }
