@@ -101,7 +101,9 @@ def test_cli_init(runner: CliRunner, config_file: Path):
         if url == const.NIXPKGS_FETCH_URL:
             return NIXPKGS_TREE
 
-        raise RuntimeError(f"test err: mock got url {url}, expected {const.NIXPKGS_FETCH_URL}")
+        raise RuntimeError(
+            f"test err: mock got url {url}, expected {const.NIXPKGS_FETCH_URL}"
+        )
 
     with patch("slopbox.main.Nix.fetch_tree", MagicMock(side_effect=_mock_fetch)):
         runner.invoke(cli, ["--config", str(config_file), "init"])
@@ -110,7 +112,9 @@ def test_cli_init(runner: CliRunner, config_file: Path):
     assert lock_file.exists()
     assert env_file.exists()
 
-    lock = nix.NixFetchTreeResult.model_validate_json(lock_file.read_text(encoding="utf-8"))
+    lock = nix.NixFetchTreeResult.model_validate_json(
+        lock_file.read_text(encoding="utf-8")
+    )
     assert lock == NIXPKGS_TREE
 
     assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_ENV_CONFIG

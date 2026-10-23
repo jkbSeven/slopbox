@@ -91,7 +91,12 @@ def cli_health():
 
 @cli.command("build")
 @click.option("--profile", "-p", default="default")
-@click.option("--runtime", "-r", default="container", type=click.Choice(["container", "vm"]))
+@click.option(
+    "--runtime",
+    "-r",
+    default="container",
+    type=click.Choice(["container", "vm"]),
+)
 @click.pass_context
 def cli_build(ctx: click.Context, profile: str, runtime: str):
     """build profile"""
@@ -106,14 +111,16 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
 
     if not lock_file.exists():
         raise click.ClickException(
-            f"You haven't locked slopbox dependencies - {lock_file} does not exist. "
+            f"You haven't locked slopbox dependencies: {lock_file} does not exist. "
             "Run `slopbox init` first, then rerun this command"
         )
 
     if not slopbox_file.exists():
         raise click.ClickException(
-            f"You haven't created a slopbox environment - {slopbox_file} does not exist. "
-            "Run `slopbox init`, adjust the environment to your needs, then rerun this command"
+            "You haven't created a slopbox environment: "
+            f"{slopbox_file} does not exist. "
+            "Run `slopbox init`, adjust the environment to your needs, "
+            "then rerun this command"
         )
 
     lock = NixFetchTreeResult.model_validate_json(lock_file.read_text(encoding="utf-8"))
@@ -134,8 +141,8 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
 
     if result.returncode != 0:
         raise click.ClickException(
-            "failed to load the container image: " +
-            result.stderr.decode(encoding='utf-8')
+            "failed to load the container image: "
+            + result.stderr.decode(encoding="utf-8")
         )
 
 
