@@ -11,7 +11,7 @@
       inherit (nixpkgs) lib;
       forAllSystems = lib.genAttrs lib.systems.flakeExposed;
 
-      libSlop = import ./nix/lib;
+      libSlop = import ./src/slopbox/nix/lib;
     in
     {
       lib = libSlop;
