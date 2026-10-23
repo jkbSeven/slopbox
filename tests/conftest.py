@@ -17,12 +17,12 @@ def pytest_unconfigure():
     _tmp.cleanup()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def test_home_dir() -> Path:
     return _home
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def test_user() -> str:
     return _user
 

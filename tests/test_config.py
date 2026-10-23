@@ -10,6 +10,13 @@ def test_default_slopbox_env_dir(test_home_dir: Path):
     assert c.load().slopbox_env_dir == test_home_dir / ".config" / "slopbox"
 
 
+def test_slopbox_paths_property():
+    env_file, lock_file = c.load().slopbox_paths
+
+    assert env_file.name == "slopbox.nix"
+    assert lock_file.name == "slopbox.lock"
+
+
 def test_custom_config(config: dict, config_file: Path):
     assert c.load(config_file).slopbox_env_dir == Path(config["slopbox_env_dir"])
 

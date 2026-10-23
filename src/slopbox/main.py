@@ -1,11 +1,10 @@
+import subprocess
 from pathlib import Path
 
 import click
 
 from slopbox import config, const, container_engine, environment
-from slopbox.nix import Lock, Nix, NixError
-
-VERSION = "0.1.0"
+from slopbox.nix import Nix, NixError, NixFetchTreeResult
 
 
 class fmt:
@@ -50,7 +49,7 @@ def _err_if_unhealthy() -> None:
 
 
 @click.group()
-@click.version_option(version=VERSION, message="%(version)s")
+@click.version_option(version=const.VERSION, message="%(version)s")
 @click.option(
     "--config",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -91,10 +90,53 @@ def cli_health():
 
 
 @cli.command("build")
-def cli_build():
+@click.option("--profile", "-p", default="default")
+@click.option("--runtime", "-r", default="container", type=click.Choice(["container", "vm"]))
+@click.pass_context
+def cli_build(ctx: click.Context, profile: str, runtime: str):
     """build profile"""
+    if runtime != "container":
+        raise click.ClickException(f"'{runtime}' runtime is not supported yet")
+
     _err_if_unhealthy()
-    click.echo("Hello, World!")
+
+    c = config.load(ctx.obj["config"])
+
+    slopbox_file, lock_file = c.slopbox_paths
+
+    if not lock_file.exists():
+        raise click.ClickException(
+            f"You haven't locked slopbox dependencies - {lock_file} does not exist. "
+            "Run `slopbox init` first, then rerun this command"
+        )
+
+    if not slopbox_file.exists():
+        raise click.ClickException(
+            f"You haven't created a slopbox environment - {slopbox_file} does not exist. "
+            "Run `slopbox init`, adjust the environment to your needs, then rerun this command"
+        )
+
+    lock = NixFetchTreeResult.model_validate_json(lock_file.read_text(encoding="utf-8"))
+
+    click.echo(f"Building {runtime} runtime for profile '{profile}'...")
+
+    try:
+        loader_path = Nix.build_container_loader(
+            env_path=str(slopbox_file),
+            nixpkgs_url=lock.fetch_tree_url(),
+            profile=profile,
+            engine=container_engine.get_container_engine().name,
+        )
+    except NixError as err:
+        raise click.ClickException(f"build failed: {err}") from err
+
+    result = subprocess.run(f"{loader_path}/bin/loader", capture_output=True)
+
+    if result.returncode != 0:
+        raise click.ClickException(
+            "failed to load the container image: " +
+            result.stderr.decode(encoding='utf-8')
+        )
 
 
 @cli.command("init")
@@ -111,8 +153,7 @@ def cli_init(ctx: click.Context):
 
     _init_config_dir(c.slopbox_env_dir)
 
-    lock: Lock
-    lock_file = c.slopbox_env_dir / "slopbox.lock"
+    slopbox_file, lock_file = c.slopbox_paths
 
     if not lock_file.exists():
         try:
@@ -122,21 +163,11 @@ def cli_init(ctx: click.Context):
                 f"failed to fetch and pin nixpkgs revision: {err}"
             ) from err
 
-        try:
-            slopbox_tree = Nix.fetch_tree(const.SLOPBOX_FETCH_URL)
-        except NixError as err:
-            raise click.ClickException(
-                f"failed to fetch and pin slopbox revision: {err}"
-            ) from err
-
-        lock = Lock(nixpkgs=nixpkgs_tree, slopbox=slopbox_tree)
-
         lock_file.write_text(
-            lock.model_dump_json(indent=2, by_alias=True),
+            nixpkgs_tree.model_dump_json(indent=2, by_alias=True),
             encoding="utf-8",
         )
 
-    slopbox_file = c.slopbox_env_dir / "slopbox.nix"
     if not slopbox_file.exists():
         slopbox_file.write_text(environment.EXAMPLE_ENV_CONFIG, encoding="utf-8")
 
