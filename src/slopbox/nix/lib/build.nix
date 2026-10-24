@@ -6,19 +6,21 @@
   ...
 }:
 let
-  loadImage = engine: drv: pkgs.writeShellApplication {
-    name = "loader";
-    text = ''
-      while IFS=':' read -r image_name image_tag; do
-        if [ "$image_name" = "${drv.imageName}" ] && [ "$image_tag" = "${drv.imageTag}" ]; then
-          printf 'Image %s:%s was already loaded, not loading again\n' "$image_name" "$image_tag"
-          exit 0
-        fi
-      done < <(${engine} image ls --format '{{ printf "%s:%s" .Repository .Tag}}')
+  loadImage =
+    engine: drv:
+    pkgs.writeShellApplication {
+      name = "loader";
+      text = ''
+        while IFS=':' read -r image_name image_tag; do
+          if [ "$image_name" = "${drv.imageName}" ] && [ "$image_tag" = "${drv.imageTag}" ]; then
+            printf 'Image %s:%s was already loaded, not loading again\n' "$image_name" "$image_tag"
+            exit 0
+          fi
+        done < <(${engine} image ls --format '{{ printf "%s:%s" .Repository .Tag}}')
 
-      ${engine} load < ${drv}
-    '';
-  };
+        ${engine} load < ${drv}
+      '';
+    };
 in
 {
   options.profiles = lib.mkOption {

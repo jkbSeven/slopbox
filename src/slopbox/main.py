@@ -8,13 +8,24 @@ from slopbox.nix import Nix, NixError, NixFetchTreeResult
 
 
 class fmt:
+    esc = "\x1b"
+    checkmark = "\u2713"
+
     @staticmethod
-    def red(msg: str, **kwargs):
+    def red(msg: str, **kwargs) -> str:
         return click.style(msg, fg="red", **kwargs)
 
     @staticmethod
-    def green(msg: str, **kwargs):
+    def green(msg: str, **kwargs) -> str:
         return click.style(msg, fg="green", **kwargs)
+
+    @staticmethod
+    def up(count: int, *, goto_beg: bool) -> str:
+        return f"{fmt.esc}[{count}A" + ("\r" if goto_beg else "")
+
+    @staticmethod
+    def clear_line() -> str:
+        return f"{fmt.esc}[2K"
 
 
 def _init_config_dir(config_dir: Path):
@@ -107,7 +118,7 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
 
     c = config.load(ctx.obj["config"])
 
-    slopbox_file, lock_file = c.slopbox_paths
+    env_file, lock_file = c.slopbox_paths
 
     if not lock_file.exists():
         raise click.ClickException(
@@ -115,35 +126,59 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
             "Run `slopbox init` first, then rerun this command"
         )
 
-    if not slopbox_file.exists():
+    if not env_file.exists():
         raise click.ClickException(
             "You haven't created a slopbox environment: "
-            f"{slopbox_file} does not exist. "
+            f"{env_file} does not exist. "
             "Run `slopbox init`, adjust the environment to your needs, "
             "then rerun this command"
         )
 
     lock = NixFetchTreeResult.model_validate_json(lock_file.read_text(encoding="utf-8"))
+    nixpkgs_url = lock.fetch_tree_url()
 
-    click.echo(f"Building {runtime} runtime for profile '{profile}'...")
+    click.echo(f"Building profile '{profile}':")
 
     try:
-        loader_path = Nix.build_container_loader(
-            env_path=str(slopbox_file),
-            nixpkgs_url=lock.fetch_tree_url(),
-            profile=profile,
-            engine=container_engine.get_container_engine().name,
-        )
+        profile_data = Nix.profile_data(str(env_file), nixpkgs_url, profile)
     except NixError as err:
-        raise click.ClickException(f"build failed: {err}") from err
-
-    result = subprocess.run(f"{loader_path}/bin/loader", capture_output=True)
-
-    if result.returncode != 0:
         raise click.ClickException(
-            "failed to load the container image: "
-            + result.stderr.decode(encoding="utf-8")
+            f"failed to evaluate profile with nix: {err}"
+        ) from err
+
+    engine = container_engine.get_container_engine().name
+
+    def _build(component: str):
+        click.echo(f"-> building {component}...")
+        try:
+            loader_path = Nix.build_container_loader(
+                env_path=str(env_file),
+                nixpkgs_url=nixpkgs_url,
+                profile=profile,
+                engine=engine,
+                component=component,
+            )
+        except NixError as err:
+            raise click.ClickException(f"build failed: {err}") from err
+
+        result = subprocess.run(f"{loader_path}/bin/loader", capture_output=True)
+
+        if result.returncode != 0:
+            raise click.ClickException(
+                "failed to load the container image: "
+                + result.stderr.decode(encoding="utf-8")
+            )
+
+        click.echo(
+            fmt.up(1, goto_beg=True)
+            + fmt.clear_line()
+            + fmt.green(fmt.checkmark)
+            + f" built {component} ({profile_data['containers'][component]['image']})"
         )
+
+    _build("runtime")
+    if profile_data["profile"]["proxy"]["enable"] is True:
+        _build("proxy")
 
 
 @cli.command("init")
@@ -160,7 +195,7 @@ def cli_init(ctx: click.Context):
 
     _init_config_dir(c.slopbox_env_dir)
 
-    slopbox_file, lock_file = c.slopbox_paths
+    env_file, lock_file = c.slopbox_paths
 
     if not lock_file.exists():
         try:
@@ -175,8 +210,8 @@ def cli_init(ctx: click.Context):
             encoding="utf-8",
         )
 
-    if not slopbox_file.exists():
-        slopbox_file.write_text(environment.EXAMPLE_ENV_CONFIG, encoding="utf-8")
+    if not env_file.exists():
+        env_file.write_text(environment.EXAMPLE_ENV_CONFIG, encoding="utf-8")
 
 
 @cli.group("config")

@@ -1,9 +1,10 @@
 import functools
+import json
 import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import pydantic
 
@@ -116,6 +117,7 @@ class Nix:
         nixpkgs_url: str,
         profile: str,
         engine: str,
+        component: Literal["runtime", "proxy"],
     ) -> Path:
         cmd = cls.build_cmd(
             [
@@ -127,8 +129,9 @@ class Nix:
                 "--argstr", "slopboxEnvPath", env_path,
                 "--argstr", "profile", profile,
                 "--argstr", "engine", engine,
+                "--argstr", "component", component,
                 "--file",
-                f"{const.NIX_ROOT}/impure.nix",
+                f"{const.NIX_ROOT}/build-container-loader.nix",
             ]
         )  # fmt: skip
 
@@ -142,3 +145,35 @@ class Nix:
 
         # need to strip newline from the end!
         return Path(result.stdout.decode(encoding="utf-8").rstrip())
+
+    @classmethod
+    def profile_data(cls, env_path: str, nixpkgs_url: str, profile: str) -> dict:
+        cmd = cls.build_cmd(
+            [
+                "eval",
+                "--raw",
+                "--argstr", "nixpkgsUrl", nixpkgs_url,
+                "--argstr", "slopboxEnvPath", env_path,
+                "--argstr", "profile", profile,
+                "--file",
+                f"{const.NIX_ROOT}/profile-info.nix",
+                "out"
+            ]
+        )  # fmt: skip
+
+        result = subprocess.run(cmd, capture_output=True)
+
+        if result.returncode != 0:
+            raise NixError(
+                "failed to evaluate the profile: "
+                + result.stderr.decode(encoding="utf-8")
+            )
+
+        out = json.loads(result.stdout.decode(encoding="utf-8"))
+
+        if not isinstance(out, dict):
+            raise NixError(
+                f"error: expected profile data to be a 'dict', got '{type(out)}': {out}"
+            )
+
+        return out
