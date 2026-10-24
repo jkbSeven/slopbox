@@ -226,4 +226,4 @@ __marimo__/
 # NIX #
 #######
 /result
-!/nix/lib
+!/src/slopbox/nix/lib

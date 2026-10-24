@@ -1,21 +1,32 @@
+import json
+import subprocess
 from pathlib import Path
 
 import click
 
 from slopbox import config, const, container_engine, environment
-from slopbox.nix import Lock, Nix, NixError
-
-VERSION = "0.1.0"
+from slopbox.nix import Nix, NixError, NixFetchTreeResult
 
 
 class fmt:
+    esc = "\x1b"
+    checkmark = "\u2713"
+
     @staticmethod
-    def red(msg: str, **kwargs):
+    def red(msg: str, **kwargs) -> str:
         return click.style(msg, fg="red", **kwargs)
 
     @staticmethod
-    def green(msg: str, **kwargs):
+    def green(msg: str, **kwargs) -> str:
         return click.style(msg, fg="green", **kwargs)
+
+    @staticmethod
+    def up(count: int, *, goto_beg: bool) -> str:
+        return f"{fmt.esc}[{count}A" + ("\r" if goto_beg else "")
+
+    @staticmethod
+    def clear_line() -> str:
+        return f"{fmt.esc}[2K"
 
 
 def _init_config_dir(config_dir: Path):
@@ -50,7 +61,7 @@ def _err_if_unhealthy() -> None:
 
 
 @click.group()
-@click.version_option(version=VERSION, message="%(version)s")
+@click.version_option(version=const.VERSION, message="%(version)s")
 @click.option(
     "--config",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -91,10 +102,84 @@ def cli_health():
 
 
 @cli.command("build")
-def cli_build():
+@click.option("--profile", "-p", default="default")
+@click.option(
+    "--runtime",
+    "-r",
+    default="container",
+    type=click.Choice(["container", "vm"]),
+)
+@click.pass_context
+def cli_build(ctx: click.Context, profile: str, runtime: str):
     """build profile"""
+    if runtime != "container":
+        raise click.ClickException(f"'{runtime}' runtime is not supported yet")
+
     _err_if_unhealthy()
-    click.echo("Hello, World!")
+
+    c = config.load(ctx.obj["config"])
+
+    env_file, lock_file = c.slopbox_paths
+
+    if not lock_file.exists():
+        raise click.ClickException(
+            f"You haven't locked slopbox dependencies: {lock_file} does not exist. "
+            "Run `slopbox init` first, then rerun this command"
+        )
+
+    if not env_file.exists():
+        raise click.ClickException(
+            "You haven't created a slopbox environment: "
+            f"{env_file} does not exist. "
+            "Run `slopbox init`, adjust the environment to your needs, "
+            "then rerun this command"
+        )
+
+    lock = NixFetchTreeResult.model_validate_json(lock_file.read_text(encoding="utf-8"))
+    nixpkgs_url = lock.fetch_tree_url()
+
+    click.echo(f"Building profile '{profile}':")
+
+    try:
+        profile_data = Nix.profile_data(str(env_file), nixpkgs_url, profile)
+    except NixError as err:
+        raise click.ClickException(
+            f"failed to evaluate profile with nix: {err}"
+        ) from err
+
+    engine = container_engine.get_container_engine().name
+
+    def _build(component: str):
+        click.echo(f"-> building {component}...")
+        try:
+            loader_path = Nix.build_container_loader(
+                env_path=str(env_file),
+                nixpkgs_url=nixpkgs_url,
+                profile=profile,
+                engine=engine,
+                component=component,
+            )
+        except NixError as err:
+            raise click.ClickException(f"build failed: {err}") from err
+
+        result = subprocess.run(f"{loader_path}/bin/loader", capture_output=True)
+
+        if result.returncode != 0:
+            raise click.ClickException(
+                "failed to load the container image: "
+                + result.stderr.decode(encoding="utf-8")
+            )
+
+        click.echo(
+            fmt.up(1, goto_beg=True)
+            + fmt.clear_line()
+            + fmt.green(fmt.checkmark)
+            + f" built {component} ({profile_data['containers'][component]['image']})"
+        )
+
+    _build("runtime")
+    if profile_data["profile"]["proxy"]["enable"] is True:
+        _build("proxy")
 
 
 @cli.command("init")
@@ -111,8 +196,7 @@ def cli_init(ctx: click.Context):
 
     _init_config_dir(c.slopbox_env_dir)
 
-    lock: Lock
-    lock_file = c.slopbox_env_dir / "slopbox.lock"
+    env_file, lock_file = c.slopbox_paths
 
     if not lock_file.exists():
         try:
@@ -122,23 +206,49 @@ def cli_init(ctx: click.Context):
                 f"failed to fetch and pin nixpkgs revision: {err}"
             ) from err
 
-        try:
-            slopbox_tree = Nix.fetch_tree(const.SLOPBOX_FETCH_URL)
-        except NixError as err:
-            raise click.ClickException(
-                f"failed to fetch and pin slopbox revision: {err}"
-            ) from err
-
-        lock = Lock(nixpkgs=nixpkgs_tree, slopbox=slopbox_tree)
-
         lock_file.write_text(
-            lock.model_dump_json(indent=2, by_alias=True),
+            nixpkgs_tree.model_dump_json(indent=2, by_alias=True),
             encoding="utf-8",
         )
 
-    slopbox_file = c.slopbox_env_dir / "slopbox.nix"
-    if not slopbox_file.exists():
-        slopbox_file.write_text(environment.EXAMPLE_ENV_CONFIG, encoding="utf-8")
+    if not env_file.exists():
+        env_file.write_text(environment.EXAMPLE_ENV_CONFIG, encoding="utf-8")
+
+
+@cli.command("profile")
+@click.argument("profile", default="default")
+@click.pass_context
+def cli_profile(ctx: click.Context, profile: str):
+    """print profile data and build metadata"""
+    _err_if_unhealthy()
+
+    c = config.load(ctx.obj["config"])
+
+    env_file, lock_file = c.slopbox_paths
+
+    if not lock_file.exists():
+        raise click.ClickException(
+            f"You haven't locked slopbox dependencies: {lock_file} does not exist. "
+            "Run `slopbox init` first, then rerun this command"
+        )
+
+    if not env_file.exists():
+        raise click.ClickException(
+            "You haven't created a slopbox environment: "
+            f"{env_file} does not exist. "
+            "Run `slopbox init`, adjust the environment to your needs, "
+            "then rerun this command"
+        )
+
+    lock = NixFetchTreeResult.model_validate_json(lock_file.read_text(encoding="utf-8"))
+    try:
+        profile_data = Nix.profile_data(str(env_file), lock.fetch_tree_url(), profile)
+    except NixError as err:
+        raise click.ClickException(
+            f"failed to evaluate profile with nix: {err}"
+        ) from err
+
+    click.echo(json.dumps(profile_data, indent=2))
 
 
 @cli.group("config")

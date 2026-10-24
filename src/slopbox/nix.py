@@ -1,10 +1,14 @@
 import functools
+import json
 import logging
 import shutil
 import subprocess
-from typing import Annotated
+from pathlib import Path
+from typing import Annotated, Literal
 
 import pydantic
+
+from slopbox import const
 
 
 class NixError(Exception):
@@ -30,10 +34,12 @@ class NixFetchTreeResult(pydantic.BaseModel):
     rev: str
     shortRev: Annotated[str, pydantic.Field(alias="shortRev")]
 
+    def fetch_tree_url(self) -> str:
+        if self.url is None:
+            raise NixError("cannot produce fetch tree url because url field is None")
 
-class Lock(pydantic.BaseModel):
-    nixpkgs: NixFetchTreeResult
-    slopbox: NixFetchTreeResult
+        # FIXME: parse the url to allow for other fetch methods, owners, and repos
+        return f"github:nixos/nixpkgs/{self.rev}?narHash={self.nar_hash}"
 
 
 class Nix:
@@ -103,3 +109,71 @@ class Nix:
         r.url = url
 
         return r
+
+    @classmethod
+    def build_container_loader(
+        cls,
+        env_path: str,
+        nixpkgs_url: str,
+        profile: str,
+        engine: str,
+        component: Literal["runtime", "proxy"],
+    ) -> Path:
+        cmd = cls.build_cmd(
+            [
+                "build",
+                "--print-out-paths",
+                "--no-link",
+                "--impure",
+                "--argstr", "nixpkgsUrl", nixpkgs_url,
+                "--argstr", "slopboxEnvPath", env_path,
+                "--argstr", "profile", profile,
+                "--argstr", "engine", engine,
+                "--argstr", "component", component,
+                "--file",
+                f"{const.NIX_ROOT}/build-container-loader.nix",
+            ]
+        )  # fmt: skip
+
+        result = subprocess.run(cmd, capture_output=True)
+
+        if result.returncode != 0:
+            raise NixError(
+                f"failed to build profile {profile} for {engine} container engine: "
+                + result.stderr.decode(encoding="utf-8")
+            )
+
+        # need to strip newline from the end!
+        return Path(result.stdout.decode(encoding="utf-8").rstrip())
+
+    @classmethod
+    def profile_data(cls, env_path: str, nixpkgs_url: str, profile: str) -> dict:
+        cmd = cls.build_cmd(
+            [
+                "eval",
+                "--raw",
+                "--argstr", "nixpkgsUrl", nixpkgs_url,
+                "--argstr", "slopboxEnvPath", env_path,
+                "--argstr", "profile", profile,
+                "--file",
+                f"{const.NIX_ROOT}/profile-info.nix",
+                "out"
+            ]
+        )  # fmt: skip
+
+        result = subprocess.run(cmd, capture_output=True)
+
+        if result.returncode != 0:
+            raise NixError(
+                "failed to evaluate the profile: "
+                + result.stderr.decode(encoding="utf-8")
+            )
+
+        out = json.loads(result.stdout.decode(encoding="utf-8"))
+
+        if not isinstance(out, dict):
+            raise NixError(
+                f"error: expected profile data to be a 'dict', got '{type(out)}': {out}"
+            )
+
+        return out
