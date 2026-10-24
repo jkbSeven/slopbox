@@ -1,11 +1,11 @@
 # Slopbox
-A secure-ish environment for running AI agents.
+**A secure-ish environment for running AI agents.**
 
-The goal of this project is to make it very easy to set up
-an isolated runtime (container or virtual machine) for an AI agent.
+The goal of this project is to make it very easy to _set up
+an isolated runtime_ (container or virtual machine) for an AI agent.
 
 What you can expect:
-* reasonable configuration -- batteries included but removable
+* intuitive configuration with sane defaults
 * principle of least privilege
    * include only the packages that are neccessary for the agent to operate
    * restrict agent's network access through a customizable proxy
