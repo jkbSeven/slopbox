@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -212,6 +213,42 @@ def cli_init(ctx: click.Context):
 
     if not env_file.exists():
         env_file.write_text(environment.EXAMPLE_ENV_CONFIG, encoding="utf-8")
+
+
+@cli.command("profile")
+@click.argument("profile", default="default")
+@click.pass_context
+def cli_profile(ctx: click.Context, profile: str):
+    """print profile data and build metadata"""
+    _err_if_unhealthy()
+
+    c = config.load(ctx.obj["config"])
+
+    env_file, lock_file = c.slopbox_paths
+
+    if not lock_file.exists():
+        raise click.ClickException(
+            f"You haven't locked slopbox dependencies: {lock_file} does not exist. "
+            "Run `slopbox init` first, then rerun this command"
+        )
+
+    if not env_file.exists():
+        raise click.ClickException(
+            "You haven't created a slopbox environment: "
+            f"{env_file} does not exist. "
+            "Run `slopbox init`, adjust the environment to your needs, "
+            "then rerun this command"
+        )
+
+    lock = NixFetchTreeResult.model_validate_json(lock_file.read_text(encoding="utf-8"))
+    try:
+        profile_data = Nix.profile_data(str(env_file), lock.fetch_tree_url(), profile)
+    except NixError as err:
+        raise click.ClickException(
+            f"failed to evaluate profile with nix: {err}"
+        ) from err
+
+    click.echo(json.dumps(profile_data, indent=2))
 
 
 @cli.group("config")
