@@ -4,6 +4,7 @@ not for runtime container or vm configuration -- for that use environment module
 """
 
 import tomllib
+import typing
 from pathlib import Path
 
 import pydantic
@@ -16,6 +17,11 @@ class ConfigError(Exception):
     pass
 
 
+class SlopboxPaths(typing.NamedTuple):
+    env: Path
+    lock: Path
+
+
 class Config(pydantic.BaseModel):
     slopbox_env_dir: Path = pydantic.Field(
         default_factory=lambda: Path.home() / ".config" / "slopbox"
@@ -26,9 +32,16 @@ class Config(pydantic.BaseModel):
         validate_assignment=True,
     )
 
+    @property
+    def slopbox_paths(self) -> SlopboxPaths:
+        return SlopboxPaths(
+            env=self.slopbox_env_dir / "slopbox.nix",
+            lock=self.slopbox_env_dir / "slopbox.lock",
+        )
+
     @pydantic.field_validator("slopbox_env_dir", mode="after")
     @classmethod
-    def expand_slopbox_env_dir(cls, v: Path) -> Path:
+    def __expand_slopbox_env_dir(cls, v: Path) -> Path:
         return v.expanduser().resolve()
 
     @classmethod

@@ -18,20 +18,8 @@ NIXPKGS_TREE = nix.NixFetchTreeResult(
     }
 )
 
-SLOPBOX_TREE = nix.NixFetchTreeResult(
-    **{
-        "url": "github:jkbSeven/slopbox",
-        "lastModified": 1785955512,
-        "lastModifiedDate": "20260805184512",
-        "narHash": "sha256-V+ZWAlt2TPjvozaQA7ERe7JRJyxf4OEPVP22o2xbfEA=",
-        "rev": "1007a7f3ebdfaf153bae13a3356f3e6e08ea5913",
-        "shortRev": "1007a7f",
-    }
-)
-
 FETCH_TREE_MAPPING = {
     const.NIXPKGS_FETCH_URL: NIXPKGS_TREE,
-    const.SLOPBOX_FETCH_URL: SLOPBOX_TREE,
 }
 
 
@@ -103,15 +91,19 @@ def test_cli_health_with_podman(runner: CliRunner):
 @patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
 def test_cli_init(runner: CliRunner, config_file: Path):
     c = config.load(config_file)
-    lock_file = c.slopbox_env_dir / "slopbox.lock"
-    env_file = c.slopbox_env_dir / "slopbox.nix"
+    env_file, lock_file = c.slopbox_paths
 
     assert c.slopbox_env_dir.exists() is False
     assert lock_file.exists() is False
     assert env_file.exists() is False
 
     def _mock_fetch(url: str):
-        return FETCH_TREE_MAPPING[url]
+        if url == const.NIXPKGS_FETCH_URL:
+            return NIXPKGS_TREE
+
+        raise RuntimeError(
+            f"test err: mock got url {url}, expected {const.NIXPKGS_FETCH_URL}"
+        )
 
     with patch("slopbox.main.Nix.fetch_tree", MagicMock(side_effect=_mock_fetch)):
         runner.invoke(cli, ["--config", str(config_file), "init"])
@@ -120,9 +112,10 @@ def test_cli_init(runner: CliRunner, config_file: Path):
     assert lock_file.exists()
     assert env_file.exists()
 
-    lock = nix.Lock.model_validate_json(lock_file.read_text(encoding="utf-8"))
-    assert lock.nixpkgs == NIXPKGS_TREE
-    assert lock.slopbox == SLOPBOX_TREE
+    lock = nix.NixFetchTreeResult.model_validate_json(
+        lock_file.read_text(encoding="utf-8")
+    )
+    assert lock == NIXPKGS_TREE
 
     assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_ENV_CONFIG
 
@@ -130,8 +123,7 @@ def test_cli_init(runner: CliRunner, config_file: Path):
 @patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
 def test_cli_init_when_lockfile_exists(runner: CliRunner, config_file: Path):
     c = config.load(config_file)
-    lock_file = c.slopbox_env_dir / "slopbox.lock"
-    env_file = c.slopbox_env_dir / "slopbox.nix"
+    env_file, lock_file = c.slopbox_paths
 
     assert c.slopbox_env_dir.exists() is False
     assert lock_file.exists() is False

@@ -10,9 +10,11 @@
     let
       inherit (nixpkgs) lib;
       forAllSystems = lib.genAttrs lib.systems.flakeExposed;
+
+      libSlop = import ./src/slopbox/nix/lib;
     in
     {
-      lib = import ./nix/lib;
+      lib = libSlop;
 
       devShells = forAllSystems (
         system:
