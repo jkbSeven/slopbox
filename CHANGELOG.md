@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### ADDED
+- command `slopbox run` to run configured runtime
 - command `slopbox profile` to print evaluated profile and build metadata
 - command `slopbox build` to build containers for a profile
 - option `--config` to select a different configuration source
