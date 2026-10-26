@@ -12,42 +12,69 @@ let
       profile,
       engine,
     }:
-    pkgs.writeShellApplication {
-      name = "run";
-      text = ''
-        if [ $# -ne 1 ]; then
-          printf 'usage: %s SESSION_ID\n' "$0"
-          exit 1
-        fi
+    let
+      mountsStr = (
+        if builtins.length profile.mounts > 0 then
+          ''${lib.concatMapStringsSep "\\\n" (m: "--volume ${m}") profile.mounts} \
+          ''
+        else
+          ""
+      );
 
-        SESSION_ID="$1"
+      runtimeImage = "${profile.build.runtime.container.imageName}:${profile.build.runtime.container.imageTag}";
+      proxyImage = "${profile.build.proxy.container.imageName}:${profile.build.proxy.container.imageTag}";
 
-        ${engine} network create "slopbox-proxy-${name}-$SESSION_ID"
-        ${engine} network create --internal "slopbox-runtime-${name}-$SESSION_ID"
+      scriptWithProxy = ''
+        ${engine} network create slopbox-proxy-${name} >/dev/null
+        ${engine} network create --internal slopbox-runtime-${name} >/dev/null
 
-        ${engine} container create \
-        --name "slopbox-proxy-${name}-$SESSION_ID" \
-        --network "slopbox-proxy-${name}-$SESSION_ID" \
-        --network "slopbox-runtime-${name}-$SESSION_ID" \
+        ${engine} container run \
+        --name slopbox-proxy-${name} \
+        --network slopbox-proxy-${name} \
+        --network slopbox-runtime-${name} \
         --cap-drop ALL \
         --read-only \
-        ${profile.build.proxy.container.imageName}:${profile.build.proxy.container.imageTag} \
-        3proxy
+        --detach \
+        ${proxyImage} \
+        3proxy >/dev/null
 
-        ${engine} container start "slopbox-proxy-${name}-$SESSION_ID"
-        sleep 3
         ${engine} container run \
-        --name "slopbox-runtime-${name}-$SESSION_ID" \
-        --network "slopbox-runtime-${name}-$SESSION_ID" \
+        --name slopbox-runtime-${name} \
+        --network slopbox-runtime-${name} \
+        --rm \
         --cap-drop ALL \
         --read-only \
         --interactive \
         --tty \
         --tmpfs ${profile.homeDir} \
         --tmpfs /tmp:exec \
-        ${lib.concatMapStringsSep "\\\n" (m: "--volume ${m}") profile.mounts} \
-        ${profile.build.runtime.container.imageName}:${profile.build.runtime.container.imageTag}
+      ''
+      + mountsStr
+      + "${runtimeImage}\n"
+      + ''
+
+        ${engine} container rm -f slopbox-proxy-${name} >/dev/null
+        ${engine} network rm slopbox-proxy-${name} >/dev/null
+        ${engine} network rm slopbox-runtime-${name} >/dev/null
       '';
+
+      scriptWithoutProxy = ''
+        ${engine} container run \
+        --name slopbox-runtime-${name} \
+        --rm \
+        --cap-drop ALL \
+        --read-only \
+        --interactive \
+        --tty \
+        --tmpfs ${profile.homeDir} \
+        --tmpfs /tmp:exec \
+      ''
+      + mountsStr
+      + runtimeImage;
+    in
+    pkgs.writeShellApplication {
+      name = "run";
+      text = if profile.proxy.enable then scriptWithProxy else scriptWithoutProxy;
     };
 in
 {
@@ -85,8 +112,16 @@ in
 
           config.run = {
             container = {
-              docker = runContainers { inherit name; profile = cfg; engine = "docker"; };
-              podman = runContainers { inherit name; profile = cfg; engine = "podman"; };
+              docker = runContainers {
+                inherit name;
+                profile = cfg;
+                engine = "docker";
+              };
+              podman = runContainers {
+                inherit name;
+                profile = cfg;
+                engine = "podman";
+              };
             };
             vm = throw "vm runtime is not implemented yet!";
           };
