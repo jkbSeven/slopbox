@@ -2,7 +2,6 @@
   config,
   pkgs,
   lib,
-  libSlop,
   ...
 }:
 let
@@ -22,6 +21,12 @@ let
           ""
       );
 
+      envVarsForProxy = ''
+        --env HTTP_PROXY=http://slopbox-proxy-${name}:3128 \
+        --env HTTPS_PROXY=http://slopbox-proxy-${name}:3128 \
+        --env NO_PROXY=localhost,127.0.0.1 \
+      '';
+
       runtimeImage = "${profile.build.runtime.container.imageName}:${profile.build.runtime.container.imageTag}";
       proxyImage = "${profile.build.proxy.container.imageName}:${profile.build.proxy.container.imageTag}";
 
@@ -36,8 +41,7 @@ let
         --cap-drop ALL \
         --read-only \
         --detach \
-        ${proxyImage} \
-        3proxy >/dev/null
+        ${proxyImage} >/dev/null
 
         ${engine} container run \
         --name slopbox-runtime-${name} \
@@ -51,6 +55,7 @@ let
         --tmpfs /tmp:exec \
       ''
       + mountsStr
+      + envVarsForProxy
       + "${runtimeImage}\n\n"
       + ''
         ${engine} container rm -f slopbox-proxy-${name} >/dev/null
