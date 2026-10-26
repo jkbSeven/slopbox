@@ -92,7 +92,7 @@ in
             runtime = {
               container = pkgs.dockerTools.buildLayeredImage {
                 name = "slopbox-runtime-${name}";
-                contents = cfg.pkgs ++ (if cfg.useBasePkgs then basePkgs else [ ]);
+                contents = cfg.pkgs ++ [ cfg.agent ] ++ (if cfg.useBasePkgs then basePkgs else [ ]);
                 config = {
                   Env = map (entry: "${entry.name}=${entry.value}") (lib.attrsToList cfg.env);
                   WorkingDir = cfg.workspace;

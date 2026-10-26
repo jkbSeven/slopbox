@@ -7,7 +7,7 @@ let
   lib = import ./lib;
   cfg = (lib.config.eval { inherit nixpkgsUrl slopboxEnvPath; }).config;
   plainProfile = cfg.profiles.${profile};
-  strippedProfile = removeAttrs plainProfile [ "build" ];
+  strippedProfile = removeAttrs plainProfile [ "build" "run" ];
   containerImagesMetadata = {
     runtime = {
       image = "${plainProfile.build.runtime.container.imageName}:${plainProfile.build.runtime.container.imageTag}";
@@ -21,6 +21,10 @@ let
           image = "${plainProfile.build.proxy.container.imageName}:${plainProfile.build.proxy.container.imageTag}";
           storePath = "${plainProfile.build.proxy.container}";
         };
+    runScript = {
+      docker = "${plainProfile.run.container.docker}";
+      podman = "${plainProfile.run.container.podman}";
+    };
   };
 in
 {

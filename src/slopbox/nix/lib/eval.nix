@@ -30,6 +30,7 @@ _pkgs.lib.evalModules {
     ./schema.nix
     ./minimal.nix
     ./build.nix
+    ./run.nix
     _slopboxEnv
   ];
 }
