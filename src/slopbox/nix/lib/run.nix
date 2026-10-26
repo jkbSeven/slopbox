@@ -15,7 +15,7 @@ let
       mountsStr = (
         if builtins.length profile.mounts > 0 then
           ''
-            ${lib.concatMapStringsSep "\\\n" (m: "--volume ${m}") profile.mounts} \
+            ${lib.concatMapStringsSep " \\\n" (m: "--volume ${m}") profile.mounts} \
           ''
         else
           ""
