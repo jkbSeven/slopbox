@@ -177,3 +177,37 @@ class Nix:
             )
 
         return out
+
+    @classmethod
+    def build_container_runner(
+        cls,
+        env_path: str,
+        nixpkgs_url: str,
+        profile: str,
+        engine: str,
+    ) -> Path:
+        cmd = cls.build_cmd(
+            [
+                "build",
+                "--print-out-paths",
+                "--no-link",
+                "--impure",
+                "--argstr", "nixpkgsUrl", nixpkgs_url,
+                "--argstr", "slopboxEnvPath", env_path,
+                "--argstr", "profile", profile,
+                "--argstr", "engine", engine,
+                "--file",
+                f"{const.NIX_ROOT}/build-container-runner.nix",
+            ]
+        )  # fmt: skip
+
+        result = subprocess.run(cmd, capture_output=True)
+
+        if result.returncode != 0:
+            raise NixError(
+                f"failed to build {engine} runner for profile {profile}: "
+                + result.stderr.decode(encoding="utf-8")
+            )
+
+        # need to strip newline from the end!
+        return Path(result.stdout.decode(encoding="utf-8").rstrip())
