@@ -7,7 +7,10 @@ let
   lib = import ./lib;
   cfg = (lib.config.eval { inherit nixpkgsUrl slopboxEnvPath; }).config;
   plainProfile = cfg.profiles.${profile};
-  strippedProfile = removeAttrs plainProfile [ "build" "run" ];
+  strippedProfile = removeAttrs plainProfile [
+    "build"
+    "run"
+  ];
   containerImagesMetadata = {
     runtime = {
       image = "${plainProfile.build.runtime.container.imageName}:${plainProfile.build.runtime.container.imageTag}";
@@ -32,5 +35,6 @@ in
   out = builtins.toJSON {
     profile = strippedProfile;
     containers = containerImagesMetadata;
+    proxyConfig = if plainProfile.proxy.enable then plainProfile.build.proxy.allowlist else null;
   };
 }

@@ -66,6 +66,9 @@ in
                 proxy = lib.mkOption {
                   type = lib.types.submodule {
                     options = {
+                      allowlist = lib.mkOption {
+                        type = lib.types.package;
+                      };
                       container = lib.mkOption {
                         type = lib.types.package;
                       };
@@ -119,9 +122,40 @@ in
             };
 
             proxy = {
+              allowlist =
+                let
+                  proxyEntries =
+                    (lib.concatMapStringsSep "\n" (name: "allow * * ${name} 443") cfg.proxy.allowlist) + "\n";
+                in
+                pkgs.writeText "3proxy.cfg" (
+                  ''
+                    nserver 1.1.1.1
+                    nscache 65536
+
+                    log
+                    logformat "G%Y-%m-%d %H:%M:%S %N:%p %E %U %C:%c %R:%r (%n) %O"
+                  ''
+                  + proxyEntries
+                  + ''
+                    deny *
+
+                    proxy -p3128
+                  ''
+                );
               container = pkgs.dockerTools.buildLayeredImage {
                 name = "slopbox-proxy-${name}";
                 contents = [ pkgs._3proxy ];
+                config = {
+                  Env = [ "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
+                  Entrypoint =
+                    let
+                      entrypointScript = pkgs.writeShellApplication {
+                        name = "entrypoint";
+                        text = "exec 3proxy ${cfg.build.proxy.allowlist}";
+                      };
+                    in
+                    [ (lib.getExe entrypointScript) ];
+                };
               };
               container-loader = {
                 docker = loadImage "docker" cfg.build.proxy.container;
