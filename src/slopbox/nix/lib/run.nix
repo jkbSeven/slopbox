@@ -15,7 +15,8 @@ let
     let
       mountsStr = (
         if builtins.length profile.mounts > 0 then
-          ''${lib.concatMapStringsSep "\\\n" (m: "--volume ${m}") profile.mounts} \
+          ''
+            ${lib.concatMapStringsSep "\\\n" (m: "--volume ${m}") profile.mounts} \
           ''
         else
           ""
@@ -50,9 +51,8 @@ let
         --tmpfs /tmp:exec \
       ''
       + mountsStr
-      + "${runtimeImage}\n"
+      + "${runtimeImage}\n\n"
       + ''
-
         ${engine} container rm -f slopbox-proxy-${name} >/dev/null
         ${engine} network rm slopbox-proxy-${name} >/dev/null
         ${engine} network rm slopbox-runtime-${name} >/dev/null
