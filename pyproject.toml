@@ -1,5 +1,5 @@
 [project]
-name = "slopbox"
+name = "slopbox-env"
 version = "0.1.0"
 description = "A secure-ish environment for running AI agents."
 readme = "README.md"
@@ -17,6 +17,9 @@ dev = [
 [build-system]
 requires = ["uv_build>=0.11.22,<0.12"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "slopbox"
 
 [project.scripts]
 slopbox = "slopbox.main:main"
