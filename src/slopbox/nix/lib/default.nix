@@ -6,7 +6,7 @@ let
       pkgs.cacert
       pkgs.coreutils
       pkgs.curl
-      pkgs.git
+      pkgs.gitMinimal
       pkgs.gnugrep
       pkgs.gnused
       pkgs.less

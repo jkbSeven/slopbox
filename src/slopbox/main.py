@@ -251,6 +251,55 @@ def cli_profile(ctx: click.Context, profile: str):
     click.echo(json.dumps(profile_data, indent=2))
 
 
+@cli.command("run")
+@click.option("--profile", "-p", default="default")
+@click.option(
+    "--runtime",
+    "-r",
+    default="container",
+    type=click.Choice(["container", "vm"]),
+)
+@click.pass_context
+def cli_run(ctx: click.Context, profile: str, runtime: str):
+    """run profile"""
+    if runtime != "container":
+        raise click.ClickException(f"'{runtime}' runtime is not supported yet")
+
+    _err_if_unhealthy()
+
+    c = config.load(ctx.obj["config"])
+    env_file, lock_file = c.slopbox_paths
+
+    if not lock_file.exists():
+        raise click.ClickException(
+            f"You haven't locked slopbox dependencies: {lock_file} does not exist. "
+            "Run `slopbox init` first, then rerun this command"
+        )
+
+    if not env_file.exists():
+        raise click.ClickException(
+            "You haven't created a slopbox environment: "
+            f"{env_file} does not exist. "
+            "Run `slopbox init`, adjust the environment to your needs, "
+            "then rerun this command"
+        )
+
+    lock = NixFetchTreeResult.model_validate_json(lock_file.read_text(encoding="utf-8"))
+    nixpkgs_url = lock.fetch_tree_url()
+    engine = container_engine.get_container_engine().name
+
+    runner_path = Nix.build_container_runner(
+        str(env_file), nixpkgs_url, profile, engine
+    )
+
+    result = subprocess.run(f"{runner_path}/bin/run")
+
+    if result.returncode != 0:
+        raise click.ClickException(
+            f"error during runtime, please see the {engine} logs above"
+        )
+
+
 @cli.group("config")
 def cli_config():
     """manage tool configuration (slopbox CLI)"""

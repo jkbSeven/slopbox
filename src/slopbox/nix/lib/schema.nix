@@ -87,11 +87,6 @@ in
                       type = t.listOf t.nonEmptyStr;
                       default = [ ];
                     };
-
-                    addr = lib.mkOption {
-                      type = t.nullOr t.nonEmptyStr;
-                      default = null;
-                    };
                   };
                 };
               };
