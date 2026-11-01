@@ -12,11 +12,7 @@ assert
   || throw "you must pass one of 'slopboxEnv' or 'slopboxEnvPath'";
 
 let
-  _pkgs =
-    if pkgs != null then
-      pkgs
-    else
-      (import (builtins.fetchTree nixpkgsUrl) { });
+  _pkgs = if pkgs != null then pkgs else (import (builtins.fetchTree nixpkgsUrl) { });
   _slopboxEnv = if slopboxEnv != null then slopboxEnv else (import slopboxEnvPath);
 in
 _pkgs.lib.evalModules {
