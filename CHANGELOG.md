@@ -5,9 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+### Fixed
+
+## [0.2.0] 2026-11-01
+
+### Added
+- slopbox as a flake package output -- slopbox can be installed with Nix directly
+
+### Fixed
+- configured agent workspace is now writeable (mounted as tmpfs unless user already configured bind mount)
+
 ## [0.1.0] 2026-10-31
 
-### ADDED
+### Added
 - command `slopbox run` to run configured runtime
 - command `slopbox profile` to print evaluated profile and build metadata
 - command `slopbox build` to build containers for a profile
