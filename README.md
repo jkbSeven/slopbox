@@ -21,13 +21,40 @@ What you can expect:
    - guide for docker on NixOS: https://wiki.nixos.org/wiki/Docker#Rootless_Docker
 
 ## Install
-slopbox is available in [pypi](https://pypi.org/project/slopbox-env/) as `slopbox-env` package
+
+### PyPI
+slopbox is available in [pypi](https://pypi.org/project/slopbox-env/) as `slopbox-env` package.
 
 Example install with [`uv`](https://docs.astral.sh/uv/):
 ```
 $ uv tool install slopbox-env
 $ slopbox --version
 ```
+
+### Nix
+Repository flake exposes slopbox as a package.
+
+#### Try out slopbox
+Temporarily add slopbox to your shell:
+```
+$ nix shell github:jkbSeven/slopbox
+$ slopbox --version
+```
+
+#### Use slopbox in your flake
+Add slopbox flake to your flake inputs:
+```nix
+inputs = {
+  nixpkgs.url = "github:nixos/nixpkgs";
+
+  slopbox = {
+    url = "github:jkbSeven/slopbox";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+};
+```
+
+Reference the package in your flake as `slopbox.packages.${system}.default`
 
 ## Docs
 No documentation is available at this point.
