@@ -30,7 +30,10 @@ let
       runtimeImage = "${profile.build.runtime.container.imageName}:${profile.build.runtime.container.imageTag}";
       proxyImage = "${profile.build.proxy.container.imageName}:${profile.build.proxy.container.imageTag}";
 
-      isWorkspaceInMountList = builtins.length (builtins.filter (m: (builtins.match "^.+:${profile.workspace}($|:.*)" m) != null) profile.mounts) > 0;
+      isWorkspaceInMountList =
+        builtins.length (
+          builtins.filter (m: (builtins.match "^.+:${profile.workspace}($|:.*)" m) != null) profile.mounts
+        ) > 0;
       workspaceTmpfs = if isWorkspaceInMountList then "" else "--tmpfs ${profile.workspace}:exec \\\n";
 
       scriptWithProxy = ''
