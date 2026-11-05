@@ -1,5 +1,5 @@
 /*
-  Inspired by home-manager nixpkgs.nix module
+  Inspired by home-manager `nixpkgs.nix` module (MIT license)
   https://github.com/nix-community/home-manager/blob/b787c48e2ec57a9d098f5c2721882a3bc1e16f97/modules/misc/nixpkgs.nix
 */
 {
