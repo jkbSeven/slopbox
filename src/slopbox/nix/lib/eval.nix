@@ -14,19 +14,22 @@ assert
 let
   _pkgs = if pkgs != null then pkgs else (import (builtins.fetchTree nixpkgsUrl) { });
   _slopboxEnv = if slopboxEnv != null then slopboxEnv else (import slopboxEnvPath);
+  libSlop = lib;
 in
 _pkgs.lib.evalModules {
   modules = [
-    ({ config, ... }: {
+    ({ config, lib, ... }: {
       config._module.args = {
-        pkgs = _pkgs;
-        libSlop = lib;
+        inherit libSlop;
+        pkgs = lib.mkDefault _pkgs;
+        pkgsPath = _pkgs.path;
       };
     })
-    ./schema.nix
-    ./minimal.nix
-    ./build.nix
-    ./run.nix
+    ../modules/nixpkgs.nix
+    ../modules/schema.nix
+    ../modules/minimal.nix
+    ../modules/build.nix
+    ../modules/run.nix
     _slopboxEnv
   ];
 }
