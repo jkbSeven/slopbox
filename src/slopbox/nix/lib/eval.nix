@@ -25,11 +25,11 @@ _pkgs.lib.evalModules {
         pkgsPath = _pkgs.path;
       };
     })
-    ./nixpkgs.nix
-    ./schema.nix
-    ./minimal.nix
-    ./build.nix
-    ./run.nix
+    ../modules/nixpkgs.nix
+    ../modules/schema.nix
+    ../modules/minimal.nix
+    ../modules/build.nix
+    ../modules/run.nix
     _slopboxEnv
   ];
 }
