@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `slopbox.nix` options `nixpkgs.config` and `nixpkgs.overlays` that are passed to nixpkgs during import
 
 ### Fixed
 
