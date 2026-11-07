@@ -71,7 +71,7 @@ in
               };
 
               mounts = lib.mkOption {
-                type = t.listOf t.nonEmptyStr;
+                type = t.listOf (t.either t.nonEmptyStr (t.listOf t.nonEmptyStr));
                 default = [ ];
               };
 
@@ -84,7 +84,7 @@ in
                     };
 
                     allowlist = lib.mkOption {
-                      type = t.listOf t.nonEmptyStr;
+                      type = t.listOf (t.either t.nonEmptyStr (t.listOf t.nonEmptyStr));
                       default = [ ];
                     };
                   };

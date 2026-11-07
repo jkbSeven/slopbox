@@ -12,10 +12,12 @@ let
       engine,
     }:
     let
+      # `mounts` is a list of: strings or lists of strings (to accomodate for libSlop.presets)
+      finalMounts = lib.lists.flatten profile.mounts;
       mountsStr = (
         if builtins.length profile.mounts > 0 then
           ''
-            ${lib.concatMapStringsSep " \\\n" (m: "--volume ${m}") profile.mounts} \
+            ${lib.concatMapStringsSep " \\\n" (m: "--volume ${m}") finalMounts} \
           ''
         else
           ""
@@ -32,7 +34,7 @@ let
 
       isWorkspaceInMountList =
         builtins.length (
-          builtins.filter (m: (builtins.match "^.+:${profile.workspace}($|:.*)" m) != null) profile.mounts
+          builtins.filter (m: (builtins.match "^.+:${profile.workspace}($|:.*)" m) != null) finalMounts
         ) > 0;
       workspaceTmpfs = if isWorkspaceInMountList then "" else "--tmpfs ${profile.workspace}:exec \\\n";
 
