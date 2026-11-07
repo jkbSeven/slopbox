@@ -198,8 +198,14 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
 
 
 @cli.command("init")
+@click.option(
+    "--template",
+    "-t",
+    type=click.Choice(("opencode", "claude", "codex")),
+    default="opencode",
+)
 @click.pass_context
-def cli_init(ctx: click.Context):
+def cli_init(ctx: click.Context, template: str):
     """initialize slopbox environment (user-wide)"""
     if not Nix.is_available():
         raise click.ClickException(
@@ -228,7 +234,10 @@ def cli_init(ctx: click.Context):
         )
 
     if not env_file.exists():
-        env_file.write_text(environment.EXAMPLE_ENV_CONFIG, encoding="utf-8")
+        env_file.write_text(
+            environment.EXAMPLE_ENV_TO_AGENT_MAPPING[template],
+            encoding="utf-8",
+        )
 
 
 @cli.command("profile")

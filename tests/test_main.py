@@ -117,7 +117,10 @@ def test_cli_init(runner: CliRunner, config_file: Path):
     )
     assert lock == NIXPKGS_TREE
 
-    assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_ENV_CONFIG
+    # opencode is the default init template
+    assert (
+        env_file.read_text(encoding="utf-8") == environment.EXAMPLE_OPENCODE_ENV_CONFIG
+    )
 
 
 @patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
@@ -140,4 +143,5 @@ def test_cli_init_when_lockfile_exists(runner: CliRunner, config_file: Path):
     assert lock_file.stat().st_size == 0
 
     assert env_file.exists()
-    assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_ENV_CONFIG
+    # opencode is the default init template
+    assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_OPENCODE_ENV_CONFIG
