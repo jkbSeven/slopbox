@@ -201,11 +201,12 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
 @click.option(
     "--template",
     "-t",
-    type=click.Choice(("opencode", "claude", "codex")),
+    type=click.Choice([a.value for a in environment.FeaturedAgent]),
+    callback=lambda ctx, param, value: environment.FeaturedAgent(value),
     default="opencode",
 )
 @click.pass_context
-def cli_init(ctx: click.Context, template: str):
+def cli_init(ctx: click.Context, template: environment.FeaturedAgent):
     """initialize slopbox environment (user-wide)"""
     if not Nix.is_available():
         raise click.ClickException(
@@ -235,7 +236,7 @@ def cli_init(ctx: click.Context, template: str):
 
     if not env_file.exists():
         env_file.write_text(
-            environment.EXAMPLE_ENV_TO_AGENT_MAPPING[template],
+            environment.AGENT_TO_EXAMPLE_ENV_MAPPING[template],
             encoding="utf-8",
         )
 

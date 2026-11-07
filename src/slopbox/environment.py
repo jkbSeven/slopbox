@@ -1,19 +1,39 @@
+from enum import Enum
+
 ENVIRONMENT_SCHEMA_VERSION = 1
 
-EXAMPLE_OPENCODE_ENV_CONFIG = """{
+
+class FeaturedAgent(Enum):
+    """agent with dedicated support in slopbox"""
+
+    OPENCODE = "opencode"
+    CLAUDE = "claude"
+    CODEX = "codex"
+
+
+def _gen_env_config(
+    agent_pkg: str,
+    mount_preset: str,
+    proxy_preset: str,
+    extra_config: str | None,
+) -> str:
+    extra_config = f"\n\n{extra_config}\n" if extra_config is not None else ""
+
+    return f"""{{
   config,
   pkgs,
   libSlop,
   ...
-}:
-{
-  default = {
-    agent = pkgs.opencode;
+}}:
+{{
+  default = {{
+    agent = pkgs.{agent_pkg};
     workspace = "/workspace";
-  };
+  }};
 
-  profiles = {
-    default = {
+  profiles = {{
+    default = config.profiles.python-uv;
+    python-uv = {{
       pkgs = [
         pkgs.python314
         pkgs.uv
@@ -22,101 +42,35 @@ EXAMPLE_OPENCODE_ENV_CONFIG = """{
       runHook = "echo 'Hello, world!'";
 
       mounts = [
-        (libSlop.presets.mounts.opencode config.profiles.default.homeDir)
+        (libSlop.presets.mounts.{mount_preset} config.profiles.python-uv.homeDir)
       ];
 
       proxy.allowlist = [
-        libSlop.presets.proxy.opencode
+        libSlop.presets.proxy.{proxy_preset}
         libSlop.presets.proxy.python
         "github.com"
         "*.github.com"
       ];
-    };
-  };
+    }};
+  }};{extra_config}
 
-  schemaVersion = @schema@;
-}
-""".replace("@schema@", str(ENVIRONMENT_SCHEMA_VERSION))
-# not using f-strings because all curly braces would need to be escaped
+  schemaVersion = {ENVIRONMENT_SCHEMA_VERSION};
+}}
+"""
 
-EXAMPLE_CLAUDE_ENV_CONFIG = """{
-  pkgs,
-  libSlop,
-  ...
-}:
-{
-  default = {
-    agent = pkgs.claude-code;
-    workspace = "/workspace";
-  };
 
-  profiles = {
-    default = {
-      pkgs = [
-        pkgs.python314
-        pkgs.uv
-      ];
+EXAMPLE_OPENCODE_ENV_CONFIG = _gen_env_config("opencode", "opencode", "opencode", None)
+EXAMPLE_CLAUDE_ENV_CONFIG = _gen_env_config(
+    "claude-code",
+    "claude",
+    "claude",
+    "nixpkgs.config.allowUnfreePredicate = "  # concatenated with below
+    'pkg: builtins.elem (lib.getName pkg) [ "claude-code" ];',
+)
+EXAMPLE_CODEX_ENV_CONFIG = _gen_env_config("codex", "codex", "codex", None)
 
-      runHook = "echo 'Hello, world!'";
-
-      mounts = [
-        (libSlop.presets.mounts.claude config.profiles.default.homeDir)
-      ];
-
-      proxy.allowlist = [
-        libSlop.presets.proxy.claude
-        libSlop.presets.proxy.python
-        "github.com"
-        "*.github.com"
-      ];
-    };
-  };
-
-  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "claude-code" ];
-
-  schemaVersion = @schema@;
-}
-""".replace("@schema@", str(ENVIRONMENT_SCHEMA_VERSION))  # noqa: E501
-
-EXAMPLE_CODEX_ENV_CONFIG = """{
-  pkgs,
-  libSlop,
-  ...
-}:
-{
-  default = {
-    agent = pkgs.codex;
-    workspace = "/workspace";
-  };
-
-  profiles = {
-    default = {
-      pkgs = [
-        pkgs.python314
-        pkgs.uv
-      ];
-
-      runHook = "echo 'Hello, world!'";
-
-      mounts = [
-        (libSlop.presets.mounts.codex config.profiles.default.homeDir)
-      ];
-
-      proxy.allowlist = [
-        libSlop.presets.proxy.codex
-        libSlop.presets.proxy.python
-        "github.com"
-        "*.github.com"
-      ];
-    };
-  };
-
-  schemaVersion = @schema@;
-}
-""".replace("@schema@", str(ENVIRONMENT_SCHEMA_VERSION))
-
-EXAMPLE_ENV_TO_AGENT_MAPPING: dict[str, str] = {
-    "opencode": EXAMPLE_OPENCODE_ENV_CONFIG,
-    "claude": EXAMPLE_CLAUDE_ENV_CONFIG,
-    "codex": EXAMPLE_CODEX_ENV_CONFIG,
+AGENT_TO_EXAMPLE_ENV_MAPPING: dict[FeaturedAgent, str] = {
+    FeaturedAgent.OPENCODE: EXAMPLE_OPENCODE_ENV_CONFIG,
+    FeaturedAgent.CLAUDE: EXAMPLE_CLAUDE_ENV_CONFIG,
+    FeaturedAgent.CODEX: EXAMPLE_CODEX_ENV_CONFIG,
 }

@@ -88,6 +88,15 @@ def test_cli_health_with_podman(runner: CliRunner):
         assert "Container engine: podman (rootless)" in result.stdout
 
 
+def _mock_nix_fetch(url: str):
+    if url == const.NIXPKGS_FETCH_URL:
+        return NIXPKGS_TREE
+
+    raise RuntimeError(
+        f"test err: mock got url {url}, expected {const.NIXPKGS_FETCH_URL}"
+    )
+
+
 @patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
 def test_cli_init(runner: CliRunner, config_file: Path):
     c = config.load(config_file)
@@ -97,16 +106,10 @@ def test_cli_init(runner: CliRunner, config_file: Path):
     assert lock_file.exists() is False
     assert env_file.exists() is False
 
-    def _mock_fetch(url: str):
-        if url == const.NIXPKGS_FETCH_URL:
-            return NIXPKGS_TREE
+    with patch("slopbox.main.Nix.fetch_tree", MagicMock(side_effect=_mock_nix_fetch)):
+        result = runner.invoke(cli, ["--config", str(config_file), "init"])
 
-        raise RuntimeError(
-            f"test err: mock got url {url}, expected {const.NIXPKGS_FETCH_URL}"
-        )
-
-    with patch("slopbox.main.Nix.fetch_tree", MagicMock(side_effect=_mock_fetch)):
-        runner.invoke(cli, ["--config", str(config_file), "init"])
+    assert result.exit_code == 0
 
     assert c.slopbox_env_dir.exists()
     assert lock_file.exists()
@@ -124,6 +127,64 @@ def test_cli_init(runner: CliRunner, config_file: Path):
 
 
 @patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
+def test_cli_init_for_claude(runner: CliRunner, config_file: Path):
+    c = config.load(config_file)
+    env_file, lock_file = c.slopbox_paths
+
+    assert c.slopbox_env_dir.exists() is False
+    assert lock_file.exists() is False
+    assert env_file.exists() is False
+
+    with patch("slopbox.main.Nix.fetch_tree", MagicMock(side_effect=_mock_nix_fetch)):
+        result = runner.invoke(
+            cli,
+            ["--config", str(config_file), "init", "-t", "claude"],
+        )
+
+    assert result.exit_code == 0
+
+    assert c.slopbox_env_dir.exists()
+    assert lock_file.exists()
+    assert env_file.exists()
+
+    lock = nix.NixFetchTreeResult.model_validate_json(
+        lock_file.read_text(encoding="utf-8")
+    )
+    assert lock == NIXPKGS_TREE
+
+    assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_CLAUDE_ENV_CONFIG
+
+
+@patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
+def test_cli_init_for_codex(runner: CliRunner, config_file: Path):
+    c = config.load(config_file)
+    env_file, lock_file = c.slopbox_paths
+
+    assert c.slopbox_env_dir.exists() is False
+    assert lock_file.exists() is False
+    assert env_file.exists() is False
+
+    with patch("slopbox.main.Nix.fetch_tree", MagicMock(side_effect=_mock_nix_fetch)):
+        result = runner.invoke(
+            cli,
+            ["--config", str(config_file), "init", "-t", "codex"],
+        )
+
+    assert result.exit_code == 0
+
+    assert c.slopbox_env_dir.exists()
+    assert lock_file.exists()
+    assert env_file.exists()
+
+    lock = nix.NixFetchTreeResult.model_validate_json(
+        lock_file.read_text(encoding="utf-8")
+    )
+    assert lock == NIXPKGS_TREE
+
+    assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_CODEX_ENV_CONFIG
+
+
+@patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
 def test_cli_init_when_lockfile_exists(runner: CliRunner, config_file: Path):
     c = config.load(config_file)
     env_file, lock_file = c.slopbox_paths
@@ -132,12 +193,15 @@ def test_cli_init_when_lockfile_exists(runner: CliRunner, config_file: Path):
     assert lock_file.exists() is False
     assert env_file.exists() is False
 
+    # simulating pre-existing lock file
     c.slopbox_env_dir.mkdir()
     lock_file.touch()
 
     with patch("slopbox.main.Nix.fetch_tree") as mock_fetch:
-        runner.invoke(cli, ["--config", str(config_file), "init"])
+        result = runner.invoke(cli, ["--config", str(config_file), "init"])
         mock_fetch.assert_not_called()
+
+    assert result.exit_code == 0
 
     # we created empty file by hand, making sure it was not overwritten
     assert lock_file.stat().st_size == 0
@@ -147,3 +211,32 @@ def test_cli_init_when_lockfile_exists(runner: CliRunner, config_file: Path):
     assert (
         env_file.read_text(encoding="utf-8") == environment.EXAMPLE_OPENCODE_ENV_CONFIG
     )
+
+
+@patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
+def test_cli_init_when_envfile_exists(runner: CliRunner, config_file: Path):
+    c = config.load(config_file)
+    env_file, lock_file = c.slopbox_paths
+
+    assert c.slopbox_env_dir.exists() is False
+    assert lock_file.exists() is False
+    assert env_file.exists() is False
+
+    # simulating pre-existing env file
+    c.slopbox_env_dir.mkdir()
+    env_file.touch()
+
+    with patch("slopbox.main.Nix.fetch_tree", MagicMock(side_effect=_mock_nix_fetch)):
+        result = runner.invoke(cli, ["--config", str(config_file), "init"])
+
+    assert result.exit_code == 0
+
+    assert lock_file.exists()
+    lock = nix.NixFetchTreeResult.model_validate_json(
+        lock_file.read_text(encoding="utf-8")
+    )
+    assert lock == NIXPKGS_TREE
+
+    # we created empty file by hand, making sure it was not overwritten
+    assert env_file.exists()
+    assert env_file.stat().st_size == 0
