@@ -17,11 +17,12 @@ def _gen_env_config(
     proxy_preset: str,
     extra_config: str | None,
 ) -> str:
-    extra_config = f"\n\n{extra_config}\n" if extra_config is not None else ""
+    extra_config = f"\n  {extra_config}\n" if extra_config is not None else ""
 
     return f"""{{
   config,
   pkgs,
+  lib,
   libSlop,
   ...
 }}:
@@ -32,8 +33,7 @@ def _gen_env_config(
   }};
 
   profiles = {{
-    default = config.profiles.python-uv;
-    python-uv = {{
+    default = {{
       pkgs = [
         pkgs.python314
         pkgs.uv
@@ -42,7 +42,7 @@ def _gen_env_config(
       runHook = "echo 'Hello, world!'";
 
       mounts = [
-        (libSlop.presets.mounts.{mount_preset} config.profiles.python-uv.homeDir)
+        (libSlop.presets.mounts.{mount_preset} config.profiles.default.homeDir)
       ];
 
       proxy.allowlist = [
@@ -52,8 +52,8 @@ def _gen_env_config(
         "*.github.com"
       ];
     }};
-  }};{extra_config}
-
+  }};
+  {extra_config}
   schemaVersion = {ENVIRONMENT_SCHEMA_VERSION};
 }}
 """
