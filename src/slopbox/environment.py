@@ -1,6 +1,7 @@
 ENVIRONMENT_SCHEMA_VERSION = 1
 
 EXAMPLE_OPENCODE_ENV_CONFIG = """{
+  config,
   pkgs,
   libSlop,
   ...
@@ -21,7 +22,7 @@ EXAMPLE_OPENCODE_ENV_CONFIG = """{
       runHook = "echo 'Hello, world!'";
 
       mounts = [
-        libSlop.presets.mounts.opencode
+        (libSlop.presets.mounts.opencode config.profiles.default.homeDir)
       ];
 
       proxy.allowlist = [
@@ -59,7 +60,7 @@ EXAMPLE_CLAUDE_ENV_CONFIG = """{
       runHook = "echo 'Hello, world!'";
 
       mounts = [
-        libSlop.presets.mounts.claude
+        (libSlop.presets.mounts.claude config.profiles.default.homeDir)
       ];
 
       proxy.allowlist = [
@@ -98,7 +99,7 @@ EXAMPLE_CODEX_ENV_CONFIG = """{
       runHook = "echo 'Hello, world!'";
 
       mounts = [
-        libSlop.presets.mounts.codex
+        (libSlop.presets.mounts.codex config.profiles.default.homeDir)
       ];
 
       proxy.allowlist = [

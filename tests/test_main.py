@@ -144,4 +144,6 @@ def test_cli_init_when_lockfile_exists(runner: CliRunner, config_file: Path):
 
     assert env_file.exists()
     # opencode is the default init template
-    assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_OPENCODE_ENV_CONFIG
+    assert (
+        env_file.read_text(encoding="utf-8") == environment.EXAMPLE_OPENCODE_ENV_CONFIG
+    )
