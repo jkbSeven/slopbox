@@ -15,6 +15,7 @@ let
     config = {
       eval = callLib ./eval.nix;
     };
+    presets = callLib ./presets.nix;
   };
 in
 lib

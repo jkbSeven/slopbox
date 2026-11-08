@@ -1,5 +1,7 @@
 import json
 import subprocess
+import sys
+import typing
 from pathlib import Path
 
 import click
@@ -27,6 +29,11 @@ class fmt:
     @staticmethod
     def clear_line() -> str:
         return f"{fmt.esc}[2K"
+
+
+class SlopboxContext(typing.TypedDict):
+    config_path: Path | None
+    debug: bool
 
 
 def _init_config_dir(config_dir: Path):
@@ -67,38 +74,64 @@ def _err_if_unhealthy() -> None:
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="Path to a config file (.toml)",
 )
+@click.option(
+    "--debug",
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Enable debug logs",
+)
 @click.pass_context
-def cli(ctx: click.Context, config: Path | None):
+def cli(ctx: click.Context, config: Path | None, debug: bool):
     """secure-ish environment for running AI agents"""
     ctx.ensure_object(dict)
-    ctx.obj["config"] = config
+    slop_ctx: SlopboxContext = ctx.obj
+    slop_ctx["config_path"] = config
+    slop_ctx["debug"] = debug
 
 
 @cli.command("health")
 def cli_health():
     """validate runtime health"""
-    nix_status: str
-    if not Nix.is_available():
-        nix_status = f"Nix: {fmt.red('NOT INSTALLED', bold=True)}"
-    else:
-        nix_status = f"Nix: {fmt.green('OK', bold=True)}"
-    click.echo(nix_status)
+    ok = True
 
+    # NIX CHECK
+    if Nix.is_available():
+        nix_status = f"Nix: {fmt.green('OK', bold=True)}"
+    else:
+        nix_status = f"Nix: {fmt.red('NOT INSTALLED', bold=True)}"
+        ok = False
+
+    # CONTAINER CHECK
+    cengine_ok = True
     cengine_status: str
     try:
         cengine = container_engine.get_container_engine()
+
     except container_engine.ContainerEngineError as err:
         cengine_status = (
             f"Container engine: {fmt.red('MISSING', bold=True)} (err: {err})"
         )
-    else:
-        rootless_status = (
-            "(rootless)" if cengine.is_rootless() else fmt.red("(non-rootless)")
-        )
+        ok = False
+        cengine_ok = False
+
+    if cengine_ok:
+        if cengine.is_rootless():
+            rootless_status = "(rootless)"
+        else:
+            rootless_status = fmt.red("(non-rootless)")
+            ok = False
+
         cengine_status = (
             f"Container engine: {fmt.green(cengine.name, bold=True)} {rootless_status}"
         )
+
+    # SUMMARY
+    click.echo(nix_status)
     click.echo(cengine_status)
+
+    if not ok:
+        sys.exit(1)
 
 
 @cli.command("build")
@@ -117,7 +150,8 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
 
     _err_if_unhealthy()
 
-    c = config.load(ctx.obj["config"])
+    slop_ctx: SlopboxContext = ctx.obj
+    c = config.load(slop_ctx["config_path"])
 
     env_file, lock_file = c.slopbox_paths
 
@@ -183,8 +217,15 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
 
 
 @cli.command("init")
+@click.option(
+    "--template",
+    "-t",
+    type=click.Choice([a.value for a in environment.FeaturedAgent]),
+    callback=lambda ctx, param, value: environment.FeaturedAgent(value),
+    default=environment.FeaturedAgent.OPENCODE.value,
+)
 @click.pass_context
-def cli_init(ctx: click.Context):
+def cli_init(ctx: click.Context, template: environment.FeaturedAgent):
     """initialize slopbox environment (user-wide)"""
     if not Nix.is_available():
         raise click.ClickException(
@@ -192,7 +233,8 @@ def cli_init(ctx: click.Context):
             "Nix main page: https://nixos.org/"
         )
 
-    c = config.load(ctx.obj["config"])
+    slop_ctx: SlopboxContext = ctx.obj
+    c = config.load(slop_ctx["config_path"])
 
     _init_config_dir(c.slopbox_env_dir)
 
@@ -212,7 +254,10 @@ def cli_init(ctx: click.Context):
         )
 
     if not env_file.exists():
-        env_file.write_text(environment.EXAMPLE_ENV_CONFIG, encoding="utf-8")
+        env_file.write_text(
+            environment.AGENT_TO_EXAMPLE_ENV_MAPPING[template],
+            encoding="utf-8",
+        )
 
 
 @cli.command("profile")
@@ -222,7 +267,8 @@ def cli_profile(ctx: click.Context, profile: str):
     """print profile data and build metadata"""
     _err_if_unhealthy()
 
-    c = config.load(ctx.obj["config"])
+    slop_ctx: SlopboxContext = ctx.obj
+    c = config.load(slop_ctx["config_path"])
 
     env_file, lock_file = c.slopbox_paths
 
@@ -267,7 +313,8 @@ def cli_run(ctx: click.Context, profile: str, runtime: str):
 
     _err_if_unhealthy()
 
-    c = config.load(ctx.obj["config"])
+    slop_ctx: SlopboxContext = ctx.obj
+    c = config.load(slop_ctx["config_path"])
     env_file, lock_file = c.slopbox_paths
 
     if not lock_file.exists():
@@ -309,8 +356,10 @@ def cli_config():
 @click.pass_context
 def cli_config_show(ctx: click.Context):
     """show resolved tool configuration"""
+    slop_ctx: SlopboxContext = ctx.obj
+
     try:
-        c = config.load(ctx.obj["config"])
+        c = config.load(slop_ctx["config_path"])
 
     except config.ConfigError as err:
         raise click.ClickException(f"error while loading tool config: {err}") from err
@@ -322,7 +371,9 @@ def cli_config_show(ctx: click.Context):
 @click.pass_context
 def cli_config_edit(ctx: click.Context):
     """edit tool configuration in your text editor ($EDITOR)"""
-    p = ctx.obj["config"] or config.DEFAULT_CONFIG_PATH
+    slop_ctx: SlopboxContext = ctx.obj
+
+    p = slop_ctx["config_path"] or config.DEFAULT_CONFIG_PATH
     p.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
 
     if p.exists() and not p.is_file():

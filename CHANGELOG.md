@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- templates for `slopbox init` command through `--template` option: `opencode`, `claude`, and `codex`
 - `slopbox.nix` options `nixpkgs.config` and `nixpkgs.overlays` that are passed to nixpkgs during import
+
+### Changed
+- `slopbox health` returns with exit code 1 when not healthy, previously the exit code was always 0
 
 ### Fixed
 
