@@ -28,25 +28,110 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
-@patch("slopbox.main.Nix.is_available", MagicMock(return_value=False))
-def test_cli_health_when_nix_not_available(runner: CliRunner):
-    result = runner.invoke(cli, ["health"])
-    assert "Nix: NOT INSTALLED\n" in result.stdout
+@pytest.fixture(autouse=True)
+def empty_sys_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    This fixture has been created to make sure that none of the tests use host binaries,
+    which would result in flaky test results.
+    Instead each test case declares what tools it wants available or missing.
+    Actual slopbox build/run behavior must be verified in integration tests.
+    """
+    monkeypatch.setenv("PATH", "")
 
 
-@patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
-def test_cli_health_when_nix_is_available(runner: CliRunner):
+@pytest.fixture
+def tools_nix_available():
+    with patch("slopbox.main.Nix.is_available", MagicMock(return_value=True)):
+        yield
+
+
+@pytest.fixture
+def tools_nix_not_available():
+    with patch("slopbox.main.Nix.is_available", MagicMock(return_value=False)):
+        yield
+
+
+@pytest.fixture
+def tools_cengine_available_non_rootless():
+    mock_docker = MagicMock()
+    mock_docker.name = "docker"
+    mock_docker.is_rootless.return_value = False
+
+    with patch("slopbox.main.container_engine.get_container_engine") as mock_get_engine:
+        mock_get_engine.return_value = mock_docker
+        yield
+
+
+@pytest.fixture
+def tools_cengine_available():
+    mock_docker = MagicMock()
+    mock_docker.name = "docker"
+    mock_docker.is_rootless.return_value = True
+
+    with patch("slopbox.main.container_engine.get_container_engine") as mock_get_engine:
+        mock_get_engine.return_value = mock_docker
+        yield
+
+
+@pytest.fixture
+def tools_cengine_not_available():
+    err = "error from fixture"
+
+    with patch(
+        "slopbox.main.container_engine.get_container_engine",
+        MagicMock(side_effect=container_engine.ContainerEngineError(err)),
+    ):
+        yield
+
+
+@pytest.fixture
+def tools_all_available(tools_cengine_available, tools_nix_available):
+    pass
+
+
+@pytest.mark.usefixtures("tools_all_available")
+def test_cli_health_when_nix_is_available_and_cengine_ok(runner: CliRunner):
     result = runner.invoke(cli, ["health"])
+
+    assert result.exit_code == 0
     assert "Nix: OK\n" in result.stdout
+    assert "Container engine: docker (rootless)\n" in result.stdout
 
 
-@patch(
-    "slopbox.main.container_engine.get_container_engine",
-    MagicMock(side_effect=container_engine.ContainerEngineError("some err")),
-)
-def test_cli_health_when_container_engine_not_available(runner: CliRunner):
+@pytest.mark.usefixtures("tools_nix_available", "tools_cengine_not_available")
+def test_cli_health_when_nix_available_and_cengine_not_available(runner: CliRunner):
     result = runner.invoke(cli, ["health"])
-    assert "Container engine: MISSING (err: some err)" in result.stdout
+
+    assert result.exit_code == 1
+    assert "Nix: OK\n" in result.stdout
+    assert "Container engine: MISSING (err: error from fixture)\n" in result.stdout
+
+
+@pytest.mark.usefixtures("tools_nix_available", "tools_cengine_available_non_rootless")
+def test_cli_health_when_nix_available_and_cengine_non_rootless(runner: CliRunner):
+    result = runner.invoke(cli, ["health"])
+
+    assert result.exit_code == 1
+    assert "Nix: OK\n" in result.stdout
+    assert "Container engine: docker (non-rootless)\n" in result.stdout
+
+
+@pytest.mark.usefixtures("tools_nix_not_available", "tools_cengine_available")
+def test_cli_health_when_nix_not_available_and_cengine_ok(runner: CliRunner):
+    result = runner.invoke(cli, ["health"])
+
+    assert result.exit_code == 1
+    assert "Nix: NOT INSTALLED\n" in result.stdout
+    assert "Container engine: docker (rootless)\n" in result.stdout
+
+
+@pytest.mark.usefixtures("tools_nix_not_available", "tools_cengine_not_available")
+def test_cli_health_when_nix_not_available_and_cengine_not_available(runner: CliRunner):
+    result = runner.invoke(cli, ["health"])
+
+    assert result.exit_code == 1
+    assert "Nix: NOT INSTALLED\n" in result.stdout
+    assert "Container engine: MISSING (err: error from fixture)\n" in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -97,7 +182,18 @@ def _mock_nix_fetch(url: str):
     )
 
 
-@patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
+@pytest.mark.usefixtures("tools_nix_not_available")
+def test_cli_init_with_nix_not_available(runner: CliRunner):
+    result = runner.invoke(cli, ["init"])
+
+    assert result.exit_code == 1
+    assert (
+        "You have to install Nix prior to using slopbox; "
+        "Nix main page: https://nixos.org/" in result.stderr
+    )
+
+
+@pytest.mark.usefixtures("tools_nix_available")
 def test_cli_init(runner: CliRunner, config_file: Path):
     c = config.load(config_file)
     env_file, lock_file = c.slopbox_paths
@@ -126,7 +222,7 @@ def test_cli_init(runner: CliRunner, config_file: Path):
     )
 
 
-@patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
+@pytest.mark.usefixtures("tools_nix_available")
 def test_cli_init_for_claude(runner: CliRunner, config_file: Path):
     c = config.load(config_file)
     env_file, lock_file = c.slopbox_paths
@@ -155,7 +251,7 @@ def test_cli_init_for_claude(runner: CliRunner, config_file: Path):
     assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_CLAUDE_ENV_CONFIG
 
 
-@patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
+@pytest.mark.usefixtures("tools_nix_available")
 def test_cli_init_for_codex(runner: CliRunner, config_file: Path):
     c = config.load(config_file)
     env_file, lock_file = c.slopbox_paths
@@ -184,7 +280,7 @@ def test_cli_init_for_codex(runner: CliRunner, config_file: Path):
     assert env_file.read_text(encoding="utf-8") == environment.EXAMPLE_CODEX_ENV_CONFIG
 
 
-@patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
+@pytest.mark.usefixtures("tools_nix_available")
 def test_cli_init_when_lockfile_exists(runner: CliRunner, config_file: Path):
     c = config.load(config_file)
     env_file, lock_file = c.slopbox_paths
@@ -213,7 +309,7 @@ def test_cli_init_when_lockfile_exists(runner: CliRunner, config_file: Path):
     )
 
 
-@patch("slopbox.main.Nix.is_available", MagicMock(return_value=True))
+@pytest.mark.usefixtures("tools_nix_available")
 def test_cli_init_when_envfile_exists(runner: CliRunner, config_file: Path):
     c = config.load(config_file)
     env_file, lock_file = c.slopbox_paths
