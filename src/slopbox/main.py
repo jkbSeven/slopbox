@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 import typing
 from pathlib import Path
 
@@ -74,9 +75,10 @@ def _err_if_unhealthy() -> None:
     help="Path to a config file (.toml)",
 )
 @click.option(
-    "--debug/--no-debug",
+    "--debug",
     "--verbose",
-    default=False,
+    "-v",
+    is_flag=True,
     help="Enable debug logs",
 )
 @click.pass_context
@@ -91,28 +93,45 @@ def cli(ctx: click.Context, config: Path | None, debug: bool):
 @cli.command("health")
 def cli_health():
     """validate runtime health"""
-    nix_status: str
-    if not Nix.is_available():
-        nix_status = f"Nix: {fmt.red('NOT INSTALLED', bold=True)}"
-    else:
-        nix_status = f"Nix: {fmt.green('OK', bold=True)}"
-    click.echo(nix_status)
+    ok = True
 
+    # NIX CHECK
+    if Nix.is_available():
+        nix_status = f"Nix: {fmt.green('OK', bold=True)}"
+    else:
+        nix_status = f"Nix: {fmt.red('NOT INSTALLED', bold=True)}"
+        ok = False
+
+    # CONTAINER CHECK
+    cengine_ok = True
     cengine_status: str
     try:
         cengine = container_engine.get_container_engine()
+
     except container_engine.ContainerEngineError as err:
         cengine_status = (
             f"Container engine: {fmt.red('MISSING', bold=True)} (err: {err})"
         )
-    else:
-        rootless_status = (
-            "(rootless)" if cengine.is_rootless() else fmt.red("(non-rootless)")
-        )
+        ok = False
+        cengine_ok = False
+
+    if cengine_ok:
+        if cengine.is_rootless():
+            rootless_status = "(rootless)"
+        else:
+            rootless_status = fmt.red("(non-rootless)")
+            ok = False
+
         cengine_status = (
             f"Container engine: {fmt.green(cengine.name, bold=True)} {rootless_status}"
         )
+
+    # SUMMARY
+    click.echo(nix_status)
     click.echo(cengine_status)
+
+    if not ok:
+        sys.exit(1)
 
 
 @cli.command("build")
@@ -203,7 +222,7 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
     "-t",
     type=click.Choice([a.value for a in environment.FeaturedAgent]),
     callback=lambda ctx, param, value: environment.FeaturedAgent(value),
-    default="opencode",
+    default=environment.FeaturedAgent.OPENCODE.value,
 )
 @click.pass_context
 def cli_init(ctx: click.Context, template: environment.FeaturedAgent):
