@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `slopbox health` returns with exit code 1 when not healthy, previously the exit code was always 0
 
 ### Fixed
+- on-exit container cleanup is more stable (previously, if the last user-invoked command exited with non-zero exit status, the cleanup would fail)
 
 ## [0.2.2] 2026-11-01
 
