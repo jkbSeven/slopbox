@@ -49,7 +49,7 @@ let
             [ -z "$oid" ] && continue
 
             if ! ${engine} container rm --force "$oid" > /dev/null; then
-              printf 'failed to remove container "%s" with id %s, manual intervention required\n' "$n" "$oid"
+              printf 'failed to remove container "%s" with id %s, manual intervention required\n' "$c" "$oid"
               ok=0
             fi
           done
