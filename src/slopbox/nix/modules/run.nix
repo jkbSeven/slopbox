@@ -39,6 +39,37 @@ let
       workspaceTmpfs = if isWorkspaceInMountList then "" else "--tmpfs ${profile.workspace}:exec \\\n";
 
       scriptWithProxy = ''
+        cleanup() {
+          local oid
+          local ok
+          ok=1
+
+          for c in slopbox-proxy-${name} slopbox-runtime-${name}; do
+            oid=$(${engine} container ls --quiet --filter "name=$c")
+            [ -z "$oid" ] && continue
+
+            if ! ${engine} container rm --force "$oid" > /dev/null; then
+              printf 'failed to remove container "%s" with id %s, manual intervention required\n' "$n" "$oid"
+              ok=0
+            fi
+          done
+
+          for n in slopbox-proxy-${name} slopbox-runtime-${name}; do
+            oid=$(${engine} network ls --quiet --filter "name=$n")
+            [ -z "$oid" ] && continue
+
+            if ! ${engine} network rm "$oid" > /dev/null; then
+              printf 'failed to remove network "%s" with id %s, manual intervention required\n' "$n" "$oid"
+              ok=0
+            fi
+          done
+
+          [ "$ok" -eq 0 ] && exit 1
+          exit 0
+        }
+
+        trap 'cleanup' EXIT
+
         ${engine} network create slopbox-proxy-${name} >/dev/null
         ${engine} network create --internal slopbox-runtime-${name} >/dev/null
 
@@ -65,12 +96,7 @@ let
       + workspaceTmpfs
       + mountsStr
       + envVarsForProxy
-      + "${runtimeImage}\n\n"
-      + ''
-        ${engine} container rm -f slopbox-proxy-${name} >/dev/null
-        ${engine} network rm slopbox-proxy-${name} >/dev/null
-        ${engine} network rm slopbox-runtime-${name} >/dev/null
-      '';
+      + "${runtimeImage}\n\n";
 
       scriptWithoutProxy = ''
         ${engine} container run \
@@ -82,6 +108,18 @@ let
         --tty \
         --tmpfs ${profile.homeDir} \
         --tmpfs /tmp:exec \
+
+        if [ $? -ne 0 ]; then
+          container_id=$(${engine} container ls --quiet --filter 'name=slopbox-runtime-${name}')
+
+          [ -z "$container_id" ] && exit 0
+
+          printf 'failed to remove container upon exit, retrying\n'
+          if ! ${engine} container rm --force "$container_id" > /dev/null; then
+            printf 'manual intervention required, failed to remove container "slopbox-runtime-${name}" with id %s\n' "$container_id"
+            exit 1
+          fi
+        fi
       ''
       + mountsStr
       + runtimeImage;
@@ -89,6 +127,7 @@ let
     pkgs.writeShellApplication {
       name = "run";
       text = if profile.proxy.enable then scriptWithProxy else scriptWithoutProxy;
+      bashOptions = [ ];
     };
 in
 {
