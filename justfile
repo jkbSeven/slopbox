@@ -5,7 +5,8 @@ fmt:
 	ruff format {{CODEDIRS}}
 
 fmt-check:
-	ruff format --check {{CODEDIRS}}
+    ruff format --check {{CODEDIRS}}
+    nix fmt -- --ci src/slopbox/nix
 
 lint:
 	ruff check {{CODEDIRS}}
