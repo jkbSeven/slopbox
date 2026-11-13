@@ -173,7 +173,7 @@ def test_cli_health_with_podman(runner: CliRunner):
         assert "Container engine: podman (rootless)" in result.stdout
 
 
-def _mock_nix_fetch(url: str):
+def _mock_nix_fetch(url: str, _debug):
     if url == const.NIXPKGS_FETCH_URL:
         return NIXPKGS_TREE
 

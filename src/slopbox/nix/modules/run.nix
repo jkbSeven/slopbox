@@ -14,14 +14,54 @@ let
     let
       # `mounts` is a list of: strings or lists of strings (to accomodate for libSlop.presets)
       finalMounts = lib.lists.flatten profile.mounts;
+      finalMountsFormatted = map (
+        m:
+        let
+          opts = if m.opts != null then ":" + (lib.concatStringsSep "," m.opts) else "";
+        in
+        "${m.from}:${m.to}" + opts
+      ) finalMounts;
+
       mountsStr = (
         if builtins.length profile.mounts > 0 then
           ''
-            ${lib.concatMapStringsSep " \\\n" (m: "--volume ${m}") finalMounts} \
+            ${lib.concatMapStringsSep " \\\n" (m: "--volume ${m}") finalMountsFormatted} \
           ''
         else
           ""
       );
+
+      mountsSetup = lib.concatMapStringsSep "\n\n" (
+        m:
+        if m.type == "dir" then
+          ''
+            if [ ! -d ${m.from} ]; then
+              autocreate=${builtins.toString m.autocreate.enable}
+              if [ "$autocreate" -eq 1 ]; then
+                printf 'INFO: directory ${m.from} does not exist on the host system, creating...\n'
+                mkdir ${m.from} || exit 1
+              else
+                printf 'ERROR: directory ${m.from} does not exist on the host system\n'
+                exit 1
+              fi
+            fi
+          ''
+        else
+          ''
+            if [ ! -f ${m.from} ]; then
+              autocreate=${builtins.toString m.autocreate.enable}
+              if [ "$autocreate" -eq 1 ]; then
+                printf 'INFO: file ${m.from} does not exist on the host system, creating...\n'
+                cat > ${m.from} << EOF || exit $?
+            ${m.autocreate.payload}
+            EOF
+              else
+                printf 'ERROR: file ${m.from} does not exist on the host system\n'
+                exit 1
+              fi
+            fi
+          ''
+      ) finalMounts;
 
       envVarsForProxy = ''
         --env HTTP_PROXY=http://slopbox-proxy-${name}:3128 \
@@ -34,11 +74,11 @@ let
 
       isWorkspaceInMountList =
         builtins.length (
-          builtins.filter (m: (builtins.match "^.+:${profile.workspace}($|:.*)" m) != null) finalMounts
+          builtins.filter (m: (builtins.match "^${profile.workspace}$" m.to) != null) finalMounts
         ) > 0;
       workspaceTmpfs = if isWorkspaceInMountList then "" else "--tmpfs ${profile.workspace}:exec \\\n";
 
-      scriptWithProxy = ''
+      scriptWithProxy = mountsSetup + ''
         cleanup() {
           local oid
           local ok
@@ -96,7 +136,7 @@ let
       + workspaceTmpfs
       + mountsStr
       + envVarsForProxy
-      + "${runtimeImage}\n\n";
+      + runtimeImage;
 
       scriptWithoutProxy = ''
         ${engine} container run \
@@ -108,7 +148,11 @@ let
         --tty \
         --tmpfs ${profile.homeDir} \
         --tmpfs /tmp:exec \
-
+      ''
+      + workspaceTmpfs
+      + mountsStr
+      + runtimeImage
+      + ''
         if [ $? -ne 0 ]; then
           container_id=$(${engine} container ls --quiet --filter 'name=slopbox-runtime-${name}')
 
@@ -120,9 +164,7 @@ let
             exit 1
           fi
         fi
-      ''
-      + mountsStr
-      + runtimeImage;
+      '';
     in
     pkgs.writeShellApplication {
       name = "run";

@@ -48,12 +48,19 @@ class Nix:
     experimental_features = ["fetch-tree", "flakes", "nix-command"]
 
     @classmethod
-    def build_cmd(cls, cmd: list[str]) -> list[str]:
-        return [
+    def build_cmd(cls, cmd: list[str], debug: bool = False) -> list[str]:
+        out = [
             "nix",
             "--extra-experimental-features",
             " ".join(cls.experimental_features),
-        ] + cmd
+        ]
+
+        if debug:
+            out.extend(["-L", "--show-trace"])
+
+        out += cmd
+
+        return out
 
     @classmethod
     @functools.lru_cache
@@ -83,7 +90,7 @@ class Nix:
         return shutil.which("nix") is not None
 
     @classmethod
-    def fetch_tree(cls, url: str) -> NixFetchTreeResult:
+    def fetch_tree(cls, url: str, debug: bool = False) -> NixFetchTreeResult:
         cmd = cls.build_cmd(
             [
                 "eval",
@@ -91,7 +98,8 @@ class Nix:
                 "--impure",
                 "--expr",
                 f'builtins.removeAttrs (builtins.fetchTree {url}) [ "outPath" ]',
-            ]
+            ],
+            debug=debug,
         )
 
         result = subprocess.run(cmd, capture_output=True)
@@ -118,6 +126,7 @@ class Nix:
         profile: str,
         engine: str,
         component: Literal["runtime", "proxy"],
+        debug: bool = False,
     ) -> Path:
         cmd = cls.build_cmd(
             [
@@ -132,7 +141,8 @@ class Nix:
                 "--argstr", "component", component,
                 "--file",
                 f"{const.NIX_ROOT}/build-container-loader.nix",
-            ]
+            ],
+            debug=debug,
         )  # fmt: skip
 
         result = subprocess.run(cmd, capture_output=True)
@@ -147,7 +157,13 @@ class Nix:
         return Path(result.stdout.decode(encoding="utf-8").rstrip())
 
     @classmethod
-    def profile_data(cls, env_path: str, nixpkgs_url: str, profile: str) -> dict:
+    def profile_data(
+        cls,
+        env_path: str,
+        nixpkgs_url: str,
+        profile: str,
+        debug: bool = False,
+    ) -> dict:
         cmd = cls.build_cmd(
             [
                 "eval",
@@ -158,7 +174,8 @@ class Nix:
                 "--file",
                 f"{const.NIX_ROOT}/profile-info.nix",
                 "out"
-            ]
+            ],
+            debug=debug,
         )  # fmt: skip
 
         result = subprocess.run(cmd, capture_output=True)
@@ -185,6 +202,7 @@ class Nix:
         nixpkgs_url: str,
         profile: str,
         engine: str,
+        debug: bool = False,
     ) -> Path:
         cmd = cls.build_cmd(
             [
@@ -198,7 +216,8 @@ class Nix:
                 "--argstr", "engine", engine,
                 "--file",
                 f"{const.NIX_ROOT}/build-container-runner.nix",
-            ]
+            ],
+            debug=debug,
         )  # fmt: skip
 
         result = subprocess.run(cmd, capture_output=True)

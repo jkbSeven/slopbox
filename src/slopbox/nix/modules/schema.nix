@@ -11,6 +11,42 @@ let
       type = t.nullOr type;
       default = null;
     };
+
+  bindMountType = t.submodule (
+    { config, ... }: {
+      options = {
+        from = lib.mkOption {
+          type = t.pathWith { inStore = false; }; # might be relative of absolute
+        };
+        to = lib.mkOption { type = t.externalPath; };
+        opts = lib.mkOption {
+          type = t.nullOr t.nonEmptyStr;
+          default = null;
+        };
+        type = lib.mkOption {
+          type = t.enum [
+            "file"
+            "dir"
+          ];
+          default = "dir";
+        };
+        autocreate = lib.mkOption {
+          type = t.submodule {
+            options = {
+              enable = lib.mkOption {
+                type = t.bool;
+                default = true;
+              };
+              payload = lib.mkOption {
+                type = t.nullOr t.str;
+                default = if config.type == "dir" then null else "";
+              };
+            };
+          };
+        };
+      };
+    }
+  );
 in
 {
   options = {
@@ -71,7 +107,7 @@ in
               };
 
               mounts = lib.mkOption {
-                type = t.listOf (t.either t.nonEmptyStr (t.listOf t.nonEmptyStr));
+                type = t.listOf (t.either bindMountType (t.listOf bindMountType));
                 default = [ ];
               };
 

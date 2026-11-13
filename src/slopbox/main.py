@@ -175,7 +175,9 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
     click.echo(f"Building profile '{profile}':")
 
     try:
-        profile_data = Nix.profile_data(str(env_file), nixpkgs_url, profile)
+        profile_data = Nix.profile_data(
+            str(env_file), nixpkgs_url, profile, slop_ctx["debug"]
+        )
     except NixError as err:
         raise click.ClickException(
             f"failed to evaluate profile with nix: {err}"
@@ -192,6 +194,7 @@ def cli_build(ctx: click.Context, profile: str, runtime: str):
                 profile=profile,
                 engine=engine,
                 component=component,
+                debug=slop_ctx["debug"],
             )
         except NixError as err:
             raise click.ClickException(f"build failed: {err}") from err
@@ -242,7 +245,7 @@ def cli_init(ctx: click.Context, template: environment.FeaturedAgent):
 
     if not lock_file.exists():
         try:
-            nixpkgs_tree = Nix.fetch_tree(const.NIXPKGS_FETCH_URL)
+            nixpkgs_tree = Nix.fetch_tree(const.NIXPKGS_FETCH_URL, slop_ctx["debug"])
         except NixError as err:
             raise click.ClickException(
                 f"failed to fetch and pin nixpkgs revision: {err}"
@@ -288,7 +291,9 @@ def cli_profile(ctx: click.Context, profile: str):
 
     lock = NixFetchTreeResult.model_validate_json(lock_file.read_text(encoding="utf-8"))
     try:
-        profile_data = Nix.profile_data(str(env_file), lock.fetch_tree_url(), profile)
+        profile_data = Nix.profile_data(
+            str(env_file), lock.fetch_tree_url(), profile, slop_ctx["debug"]
+        )
     except NixError as err:
         raise click.ClickException(
             f"failed to evaluate profile with nix: {err}"
@@ -336,7 +341,7 @@ def cli_run(ctx: click.Context, profile: str, runtime: str):
     engine = container_engine.get_container_engine().name
 
     runner_path = Nix.build_container_runner(
-        str(env_file), nixpkgs_url, profile, engine
+        str(env_file), nixpkgs_url, profile, engine, debug=slop_ctx["debug"]
     )
 
     result = subprocess.run(f"{runner_path}/bin/run")
