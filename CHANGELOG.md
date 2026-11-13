@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - templates for `slopbox init` command through `--template` option: `opencode`, `claude`, and `codex`
 - `slopbox.nix` options `nixpkgs.config` and `nixpkgs.overlays` that are passed to nixpkgs during import
+- if host directories or files used in bind mounts do not exist, they are can be created (see new type for `mounts` attribute)
 
 ### Changed
 - `slopbox health` returns with exit code 1 when not healthy, previously the exit code was always 0
+- type for `mounts` attribute in slopbox.nix profiles: used to be a string, now it's an attribute set
 
 ### Fixed
 - on-exit container cleanup is more stable (previously, if the last user-invoked command exited with non-zero exit status, the cleanup would fail)
