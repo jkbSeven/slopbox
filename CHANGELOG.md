@@ -13,7 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-## [0.3.0] - 2026-11-13
+## [0.3.1] 2026-11-13
+
+### Fixed
+- added missing newline in the run script where proxy container is absent
+
+## [0.3.0] 2026-11-13
 
 ### Added
 - templates for `slopbox init` command through `--template` option: `opencode`, `claude`, and `codex`
