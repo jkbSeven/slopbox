@@ -78,65 +78,67 @@ let
         ) > 0;
       workspaceTmpfs = if isWorkspaceInMountList then "" else "--tmpfs ${profile.workspace}:exec \\\n";
 
-      scriptWithProxy = mountsSetup + ''
-        cleanup() {
-          local oid
-          local ok
-          ok=1
+      scriptWithProxy =
+        mountsSetup
+        + ''
+          cleanup() {
+            local oid
+            local ok
+            ok=1
 
-          for c in slopbox-proxy-${name} slopbox-runtime-${name}; do
-            oid=$(${engine} container ls --quiet --filter "name=$c")
-            [ -z "$oid" ] && continue
+            for c in slopbox-proxy-${name} slopbox-runtime-${name}; do
+              oid=$(${engine} container ls --quiet --filter "name=$c")
+              [ -z "$oid" ] && continue
 
-            if ! ${engine} container rm --force "$oid" > /dev/null; then
-              printf 'failed to remove container "%s" with id %s, manual intervention required\n' "$c" "$oid"
-              ok=0
-            fi
-          done
+              if ! ${engine} container rm --force "$oid" > /dev/null; then
+                printf 'failed to remove container "%s" with id %s, manual intervention required\n' "$c" "$oid"
+                ok=0
+              fi
+            done
 
-          for n in slopbox-proxy-${name} slopbox-runtime-${name}; do
-            oid=$(${engine} network ls --quiet --filter "name=$n")
-            [ -z "$oid" ] && continue
+            for n in slopbox-proxy-${name} slopbox-runtime-${name}; do
+              oid=$(${engine} network ls --quiet --filter "name=$n")
+              [ -z "$oid" ] && continue
 
-            if ! ${engine} network rm "$oid" > /dev/null; then
-              printf 'failed to remove network "%s" with id %s, manual intervention required\n' "$n" "$oid"
-              ok=0
-            fi
-          done
+              if ! ${engine} network rm "$oid" > /dev/null; then
+                printf 'failed to remove network "%s" with id %s, manual intervention required\n' "$n" "$oid"
+                ok=0
+              fi
+            done
 
-          [ "$ok" -eq 0 ] && exit 1
-          exit 0
-        }
+            [ "$ok" -eq 0 ] && exit 1
+            exit 0
+          }
 
-        trap 'cleanup' EXIT
+          trap 'cleanup' EXIT
 
-        ${engine} network create slopbox-proxy-${name} >/dev/null
-        ${engine} network create --internal slopbox-runtime-${name} >/dev/null
+          ${engine} network create slopbox-proxy-${name} >/dev/null
+          ${engine} network create --internal slopbox-runtime-${name} >/dev/null
 
-        ${engine} container run \
-        --name slopbox-proxy-${name} \
-        --network slopbox-proxy-${name} \
-        --network slopbox-runtime-${name} \
-        --cap-drop ALL \
-        --read-only \
-        --detach \
-        ${proxyImage} >/dev/null
+          ${engine} container run \
+          --name slopbox-proxy-${name} \
+          --network slopbox-proxy-${name} \
+          --network slopbox-runtime-${name} \
+          --cap-drop ALL \
+          --read-only \
+          --detach \
+          ${proxyImage} >/dev/null
 
-        ${engine} container run \
-        --name slopbox-runtime-${name} \
-        --network slopbox-runtime-${name} \
-        --rm \
-        --cap-drop ALL \
-        --read-only \
-        --interactive \
-        --tty \
-        --tmpfs ${profile.homeDir} \
-        --tmpfs /tmp:exec \
-      ''
-      + workspaceTmpfs
-      + mountsStr
-      + envVarsForProxy
-      + runtimeImage;
+          ${engine} container run \
+          --name slopbox-runtime-${name} \
+          --network slopbox-runtime-${name} \
+          --rm \
+          --cap-drop ALL \
+          --read-only \
+          --interactive \
+          --tty \
+          --tmpfs ${profile.homeDir} \
+          --tmpfs /tmp:exec \
+        ''
+        + workspaceTmpfs
+        + mountsStr
+        + envVarsForProxy
+        + runtimeImage;
 
       scriptWithoutProxy = ''
         ${engine} container run \

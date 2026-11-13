@@ -127,8 +127,7 @@ in
                   # allowlist is a list of: strings or lists of strings (to accomodate for libSlop.presets)
                   finalAllowlist = lib.lists.flatten cfg.proxy.allowlist;
 
-                  proxyEntries =
-                    (lib.concatMapStringsSep "\n" (name: "allow * * ${name} 443") finalAllowlist) + "\n";
+                  proxyEntries = (lib.concatMapStringsSep "\n" (name: "allow * * ${name} 443") finalAllowlist) + "\n";
                 in
                 pkgs.writeText "3proxy.cfg" (
                   ''

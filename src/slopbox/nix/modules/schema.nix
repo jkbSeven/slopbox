@@ -16,7 +16,7 @@ let
     { config, ... }: {
       options = {
         from = lib.mkOption {
-          type = t.pathWith { inStore = false; }; # might be relative of absolute
+          type = t.pathWith { inStore = false; }; # might be relative or absolute
         };
         to = lib.mkOption { type = t.externalPath; };
         opts = lib.mkOption {

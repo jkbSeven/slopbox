@@ -2,16 +2,39 @@
 {
   mounts = {
     opencode = homeDir: [
-      { from = "~/.cache/opencode"; to = "${homeDir}/.cache/opencode"; }
-      { from = "~/.config/opencode"; to = "${homeDir}/.config/opencode"; }
-      { from = "~/.local/share/opencode"; to = "${homeDir}/.local/share/opencode"; }
-      { from = "~/.local/state/opencode"; to = "${homeDir}/.local/state/opencode"; }
+      {
+        from = "~/.cache/opencode";
+        to = "${homeDir}/.cache/opencode";
+      }
+      {
+        from = "~/.config/opencode";
+        to = "${homeDir}/.config/opencode";
+      }
+      {
+        from = "~/.local/share/opencode";
+        to = "${homeDir}/.local/share/opencode";
+      }
+      {
+        from = "~/.local/state/opencode";
+        to = "${homeDir}/.local/state/opencode";
+      }
     ];
     claude = homeDir: [
-      { from = "~/.claude"; to = "${homeDir}/.claude"; }
-      { from = "~/.claude.json"; to = "${homeDir}/.claude.json"; type = "file"; autocreate.payload = "{}"; }
+      {
+        from = "~/.claude";
+        to = "${homeDir}/.claude";
+      }
+      {
+        from = "~/.claude.json";
+        to = "${homeDir}/.claude.json";
+        type = "file";
+        autocreate.payload = "{}";
+      }
     ];
-    codex = homeDir: { from = "~/.codex"; to = "${homeDir}/.codex"; };
+    codex = homeDir: {
+      from = "~/.codex";
+      to = "${homeDir}/.codex";
+    };
   };
 
   proxy = {
