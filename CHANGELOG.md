@@ -8,9 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [0.3.0] - 2026-11-13
+
+### Added
 - templates for `slopbox init` command through `--template` option: `opencode`, `claude`, and `codex`
 - `slopbox.nix` options `nixpkgs.config` and `nixpkgs.overlays` that are passed to nixpkgs during import
-- if host directories or files used in bind mounts do not exist, they are can be created (see new type for `mounts` attribute)
+- if host directories or files used in bind mounts do not exist, they can be created (see new type for `mounts` attribute)
 
 ### Changed
 - `slopbox health` returns with exit code 1 when not healthy, previously the exit code was always 0
