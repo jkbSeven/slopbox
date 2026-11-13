@@ -1,6 +1,6 @@
 from pathlib import Path
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 PKG_ROOT = Path(__file__).parent.absolute()
 
