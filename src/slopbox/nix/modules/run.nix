@@ -154,7 +154,9 @@ let
       + workspaceTmpfs
       + mountsStr
       + runtimeImage
+      + "\n"
       + ''
+        # shellcheck disable=SC2181
         if [ $? -ne 0 ]; then
           container_id=$(${engine} container ls --quiet --filter 'name=slopbox-runtime-${name}')
 
