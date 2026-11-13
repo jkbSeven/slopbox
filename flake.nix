@@ -54,13 +54,11 @@
               pkgs.ruff
             ];
 
-            # running `ruff` downloaded through uv will still fail on NixOS though
-            # need to use nix-ld to get it to work
-            env = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-              LD_LIBRARY_PATH = lib.makeLibraryPath pkgs.pythonManylinuxPackages.manylinux1;
-            };
-
             shellHook = ''
+              if [ -z "$CI" ]; then
+                export LD_LIBRARY_PATH=${lib.makeLibraryPath pkgs.pythonManylinuxPackages.manylinux1}
+              fi
+
               unset PYTHONPATH
               uv sync
               . .venv/bin/activate
